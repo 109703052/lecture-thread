@@ -41,3 +41,21 @@ git -C vendor/lecture-to-notes checkout --detach $upstreamRevision
 資工 VLM／grounding 使用 `run.py` 載入 `profile_stage.py` 與 `profiles/computer-science/`，不得直接繞過預設執行上游腳本。模型推論依序執行，工作結束停止本專案 Ollama。
 
 `build_reader.py` 與 `serve_reader.py` 共用課程 JSON 設定，詳見 [課程設定](courses.md)。執行 `examples/demo/create_demo.py` 可在無模型／上游環境中產生可閱讀的公開示範；實際課程的匯入、辨識與講義撰寫仍需另外完成。
+
+## 元件與資料流
+
+| 元件 | 工作 |
+|---|---|
+| `vendor/lecture-to-notes` | 保留的上游原始碼與授權 |
+| `run.py`、`profile_stage.py` | 專案環境與上游轉接，不直接改上游 |
+| `profiles/computer-science` | 資工提示詞、術語與筆記規格 |
+| `build_cs_deliverable.py`、`cs_timeline.py` | 出現區間、講稿歸屬及時間軸 |
+| `course_config.py`、`build_reader.py`、`reader.js`、`reader.css` | 課程設定與共用閱讀介面 |
+| `output/.../transcript*.json` | 原始轉錄、校正版與修訂紀錄 |
+| `output/.../reading_alignment.json` | 講義段落與逐字稿對照 |
+
+新增依賴只使用 `.venv`；不修改原本 Python、全域 PATH、顯卡驅動或系統服務。`run.py` 將模型與工具快取限制在專案。先完成語音推論，再啟動視覺階段；使用完停止專案 Ollama。
+
+## 閱讀器驗收範圍
+
+已在 Chrome 的本機 HTTP 頁面驗收單句／段落聲音、影片及同步，並檢查手機與低高度視窗。實體觸控與人工尾音聽感仍待確認。公開示範的首次環境建立與驗收紀錄見 [公開準備狀態](open-source-readiness.md)。

@@ -6,6 +6,8 @@
 
 ## 開啟
 
+第一次使用、尚未建立 `.venv` 時，請先依 [公開示範入門](../../docs/quickstart.md) 準備環境。
+
 在專案根目錄執行，使用既有 `.venv` 即可，不需要模型、GPU、上游 checkout、FFmpeg 或額外 Python 套件：
 
 ```powershell

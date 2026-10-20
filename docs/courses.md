@@ -4,6 +4,8 @@
 
 ## 公開示範
 
+第一次開啟示範、尚未建立 `.venv` 時，請先依 [公開示範入門](quickstart.md) 準備環境。
+
 ```powershell
 .\.venv\Scripts\python.exe examples/demo/create_demo.py
 .\.venv\Scripts\python.exe serve_reader.py --course courses/demo.json --port 8767
