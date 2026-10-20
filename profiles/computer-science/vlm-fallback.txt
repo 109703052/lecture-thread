@@ -1,0 +1,3 @@
+Analyze this computer science slide using visible evidence only. Return only JSON:
+{"content_type": ["one or more of system_architecture, block_diagram, state_machine, flowchart, code, pseudocode, formula, memory_layout, timing_diagram, circuit_diagram, benchmark, table, chart, scatter_plot, title, text, decorative"], "apparent_educational_function": ["one or more of definition, system_relationship, algorithm_steps, worked_example, derivation, comparison, performance_tradeoff, implementation, summary, motivation, decorative"]}
+Use actual individual labels, not the explanatory strings above. Use [] for uncertain function. No prose.

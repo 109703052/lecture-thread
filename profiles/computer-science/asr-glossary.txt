@@ -1,0 +1,1 @@
+這是一堂計算機系統、記憶體與儲存裝置課程。術語包括 I/O device, CPU, cache, RAM, main memory, storage, northbridge, southbridge, PCI Express, block device, character device, clock, interrupt, polling, DMA, memory controller, DRAM, SRAM, HDD, SSD, NAND flash。請保留英文術語。

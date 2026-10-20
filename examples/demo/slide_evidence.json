@@ -1,0 +1,20 @@
+[
+  {
+    "occurrence_id": 1,
+    "start": 0,
+    "end": 12,
+    "image": "stack.svg"
+  },
+  {
+    "occurrence_id": 2,
+    "start": 12,
+    "end": 24,
+    "image": "queue.svg"
+  },
+  {
+    "occurrence_id": 3,
+    "start": 24,
+    "end": 36,
+    "image": "stack-annotated.svg"
+  }
+]

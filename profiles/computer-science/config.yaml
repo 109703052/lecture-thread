@@ -1,0 +1,172 @@
+paths:
+  pause_flag: ''
+  whisper_model_dir: ''
+models:
+  aliases:
+    breeze25: '{whisper_model_dir}/breeze-asr-25-ct2'
+    large-v3: large-v3
+dedup:
+  ui_chrome_tokens:
+  - 聊天
+  - 劇天
+  - 人員
+  - 舉手
+  - 最手
+  - 翠手
+  - 卑手
+  - 取得控制權
+  - 控制權
+  - 檢視
+  - 检视
+  - 照相機
+  - 照相格
+  - 照相
+  - 簽到
+  - 保密
+  - 視訊
+  - 麥克風
+  - 共享
+  - 邀請
+  - 錄製
+  - 反應
+  - 暫停
+  - 結束會議
+  - 停止共享
+  - 新的共享
+  - 多雲
+  - 時睛
+  - 未證
+  - 靜音
+  - 解除
+scoring:
+  weights:
+    visual_complexity: 0.15
+    non_textual_information_density: 0.25
+    speaker_reference_density: 0.3
+    speaker_emphasis_score: 0.15
+    time_spent_normalized: 0.15
+  penalties:
+    speaker_skip_score: -0.3
+    speaker_confusion_score: -0.2
+    text_redundancy_threshold: 0.7
+    text_redundancy_penalty: -0.2
+  content_type_bonuses:
+    system_architecture: 0.1
+    state_machine: 0.15
+    flowchart: 0.1
+    code: 0.15
+    pseudocode: 0.15
+    formula: 0.15
+    timing_diagram: 0.15
+    benchmark: 0.1
+  tier_thresholds:
+    tier_1: 0.65
+    tier_2: 0.4
+  hard_overrides:
+    force_tier_1_if_function_includes:
+    - algorithm_steps
+    - derivation
+    - performance_tradeoff
+    force_tier_3_if_content_type_only_set: []
+keyword_grounding:
+  abbreviation_whitelist:
+  - CPU
+  - GPU
+  - RAM
+  - DRAM
+  - SRAM
+  - ROM
+  - HDD
+  - SSD
+  - NAND
+  - NOR
+  - DMA
+  - MMIO
+  - PCI
+  - PCIe
+  - USB
+  - SATA
+  - NVMe
+  - FTL
+  - LBA
+  - ECC
+  - API
+  - OS
+  - I/O
+  drug_suffixes: []
+  medical_term_suffixes: []
+  clinical_domain_map:
+    computer_architecture:
+    - cpu
+    - cache
+    - northbridge
+    - southbridge
+    - processor
+    - register
+    operating_systems:
+    - interrupt
+    - polling
+    - driver
+    - DMA
+    - I/O
+    memory:
+    - DRAM
+    - SRAM
+    - memory
+    - refresh
+    - capacitor
+    storage:
+    - HDD
+    - SSD
+    - disk
+    - flash
+    - NAND
+    - FTL
+    - wear leveling
+    algorithms:
+    - algorithm
+    - complexity
+    - pseudocode
+  emphasis_cues_zh:
+  - 重要
+  - 最重要
+  - 核心
+  - 記住
+  - 注意
+  - 千萬
+  - 關鍵
+  - 重點
+  - 一定要
+  emphasis_cues_en:
+  - key point
+  - important
+  - remember
+  - critical
+  - essential
+  - must
+  - absolutely
+  - takeaway
+  - highlight
+  - decision making
+  confusion_cues:
+  - 這裡有錯
+  - 更正
+  - 說錯了
+  - correction
+  - I misspoke
+ocr_engine:
+  engine: rapidocr
+  surya_python: ''
+  fallback: rapidocr
+  confidence_threshold: 0.6
+  skip_no_text:
+    quick_text_len_max: 12
+    density_max: 0.03
+export:
+  author: ''
+profile:
+  name: computer-science
+  notes_language: zh-TW
+  retain_all_slides: true
+  legacy_schema: clinical_domain_map stores CS tags only; domain_tags is the neutral
+    output alias

@@ -1,0 +1,14 @@
+You analyze a computer science lecture slide. Return only valid JSON, no markdown.
+Use only visible evidence; do not invent code, arrow directions, complexity bounds, hardware capabilities, or the lecturer's intent. OCR is performed separately.
+Required fields:
+- content_type: list drawn from [system_architecture, block_diagram, state_machine, flowchart, code, pseudocode, formula, memory_layout, timing_diagram, circuit_diagram, benchmark, table, chart, scatter_plot, title, text, decorative].
+- apparent_educational_function: list drawn from [definition, system_relationship, algorithm_steps, worked_example, derivation, comparison, performance_tradeoff, implementation, summary, motivation, decorative]. Use [] when not visible.
+- visible_labels: up to 15 short exact labels (titles, components, variables, axes, units); preserve English abbreviations and mathematical symbols. Do not copy paragraphs.
+- contains_measurement: boolean, true for numerical measurements/axes/units.
+- contains_algorithm: boolean, true only for actual steps, pseudocode, or decision flow, not merely connected hardware boxes.
+- contains_clinical_imaging: false (legacy schema field; always false for this profile).
+- text_redundancy: number 0..1.
+- visual_complexity: number 0..1.
+- non_textual_information_density: number 0..1, information conveyed by arrows, spatial arrangement, state transitions, timing, or code structure.
+- model_confidence: number 0..1.
+Treat a title or agenda as part of the lesson, not as proof that the teacher skipped content. An arrow alone does not establish causation. Return only the JSON object.

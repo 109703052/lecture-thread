@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "id": "lecturethread-demo",
+  "title": "堆疊與佇列｜公開示範課程",
+  "description": "原創示範，含回頁與註記變化。音訊為合成提示音；示範逐字稿是教學腳本，並非語音辨識結果。",
+  "course_dir": "../output/demo/course",
+  "web_root": "../output/demo",
+  "output_html": "index.html",
+  "media": "../output/demo/media/demo.wav",
+  "media_kind": "audio",
+  "youtube_id": ""
+}
