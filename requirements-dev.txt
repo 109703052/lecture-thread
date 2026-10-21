@@ -1,2 +1,4 @@
 # Minimal dependencies for source-only Python tests; models and GPU are unnecessary.
 pytest==9.1.1
+
+opencc-python-reimplemented==0.1.7

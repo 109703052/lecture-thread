@@ -6,6 +6,7 @@ import copy
 from pathlib import Path
 import sys
 import yaml
+from pipeline_common import atomic_json, replace_with_retry
 ROOT=Path(__file__).resolve().parent
 PROFILE=ROOT/'profiles/computer-science'
 
@@ -16,6 +17,15 @@ def load_stage(script):
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     if script.name=='vlm_signals.py':
+        # Scope the adapter to this stage; do not monkey-patch global os or the vendor checkout.
+        original_os = module.os
+        class StageOS:
+            def __getattr__(self, name):
+                return getattr(original_os, name)
+            def replace(self, source, target):
+                return replace_with_retry(source, target)
+        module.os = StageOS()
+        module.atomic_write_json = atomic_json
         module.PROMPT=(PROFILE/'vlm-prompt.txt').read_text(encoding='utf-8-sig')
         module.FALLBACK_PROMPT=(PROFILE/'vlm-fallback.txt').read_text(encoding='utf-8-sig')
     elif script.name=='ground_slides.py':

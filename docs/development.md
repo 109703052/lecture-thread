@@ -40,7 +40,7 @@ git -C vendor/lecture-to-notes checkout --detach $upstreamRevision
 
 資工 VLM／grounding 使用 `run.py` 載入 `profile_stage.py` 與 `profiles/computer-science/`，不得直接繞過預設執行上游腳本。模型推論依序執行，工作結束停止本專案 Ollama。
 
-`build_reader.py` 與 `serve_reader.py` 共用課程 JSON 設定，詳見 [課程設定](courses.md)。執行 `examples/demo/create_demo.py` 可在無模型／上游環境中產生可閱讀的公開示範；實際課程的匯入、辨識與講義撰寫仍需另外完成。
+`build_reader.py` 與 `serve_reader.py` 共用課程 JSON 設定，詳見 [課程設定](courses.md)。執行 `examples/demo/create_demo.py` 可在無模型／上游環境中產生可閱讀的公開示範。完整環境可使用 [課程任務 CLI](overnight.md) 串接下載、辨識、分批講義、校正及匯出；預設使用本機 Ollama，不需要雲端 API 憑證。
 
 ## 元件與資料流
 

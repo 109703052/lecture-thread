@@ -3,24 +3,47 @@ import json, os, subprocess, sys, time, urllib.request
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BASE = 'http://127.0.0.1:11435'
+PIDFILE = ROOT / 'data/ollama.pid'
+PROCESS_FILE = ROOT / 'data/ollama-process.json'
+
+
+def owned_process():
+    import psutil
+    if not PIDFILE.exists():
+        raise RuntimeError('Project port is occupied but no project PID record exists; refusing to use or stop an unknown server')
+    pid = int(PIDFILE.read_text())
+    process = psutil.Process(pid)
+    if Path(process.exe()).resolve() != (ROOT/'tools/ollama/ollama.exe').resolve():
+        raise RuntimeError('PID belongs to a different program; refusing to stop it')
+    if PROCESS_FILE.exists():
+        record = json.loads(PROCESS_FILE.read_text(encoding='utf-8'))
+        if record['pid'] != pid or record['created_at'] != process.create_time():
+            raise RuntimeError('Project Ollama PID was reused; refusing to stop a different process')
+    return process
+
+
 if sys.argv[1:] == ['stop']:
-    pidfile = ROOT / 'data' / 'ollama.pid'
-    if pidfile.exists():
+    if PIDFILE.exists():
         import psutil
-        pid = int(pidfile.read_text())
         try:
-            p = psutil.Process(pid)
-            if Path(p.exe()).resolve() != (ROOT/'tools/ollama/ollama.exe').resolve():
-                raise RuntimeError('PID belongs to a different program; refusing to stop it')
+            p = owned_process()
             for child in p.children(recursive=True): child.terminate()
             p.terminate()
             p.wait(timeout=15)
         except psutil.NoSuchProcess: pass
-        pidfile.unlink()
+        PIDFILE.unlink()
+        PROCESS_FILE.unlink(missing_ok=True)
+    try:
+        urllib.request.urlopen(BASE+'/api/version', timeout=2).close()
+    except OSError:
+        pass
+    else:
+        raise RuntimeError('Project port still serves Ollama; shutdown is not confirmed')
     print('Project Ollama stopped')
     raise SystemExit(0)
 try:
     urllib.request.urlopen(BASE+'/api/version', timeout=2)
+    owned_process()
     print('Project port is already serving Ollama; no new service started')
     raise SystemExit(0)
 except OSError: pass
@@ -32,7 +55,9 @@ env.update(OLLAMA_HOST='127.0.0.1:11435', OLLAMA_MODELS=str(ROOT/'models/ollama'
 with (ROOT/'data/ollama.log').open('ab') as log:
     p=subprocess.Popen([str(ROOT/'tools/ollama/ollama.exe'),'serve'],env=env,
         cwd=ROOT,stdout=log,stderr=log,creationflags=subprocess.CREATE_NO_WINDOW)
-(ROOT/'data/ollama.pid').write_text(str(p.pid))
+PIDFILE.write_text(str(p.pid))
+import psutil
+PROCESS_FILE.write_text(json.dumps(dict(pid=p.pid, created_at=psutil.Process(p.pid).create_time())), encoding='utf-8')
 for i in range(30):
     try:
         with urllib.request.urlopen(BASE+'/api/version',timeout=2) as r: print(r.read().decode())

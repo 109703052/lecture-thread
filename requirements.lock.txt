@@ -57,3 +57,5 @@ truststore==0.10.5
 typing-extensions==4.16.0
 urllib3==2.8.0
 yt-dlp==2026.8.19
+
+opencc-python-reimplemented==0.1.7

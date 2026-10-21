@@ -9,6 +9,26 @@ def align(start,end,transcript):
     # Time alignment is transparent, not a claim of semantic/word-level matching.
     return [i for i,t in enumerate(transcript) if t['start']<end and t['end']>start]
 
+def load_reading_transcript(path, transcript, revision):
+    """Optional editorial display layer; never changes the timed source or edit base."""
+    if not path.is_file():
+        return {}
+    doc = json.loads(path.read_text(encoding='utf-8'))
+    if doc.get('schema') != 1 or doc.get('base_sha256') != revision:
+        raise ValueError('Reading transcript base changed; review transcript.reading.json before rebuilding')
+    rows = doc.get('segments', [])
+    if len(rows) != len(transcript):
+        raise ValueError('Reading transcript must preserve every source segment')
+    result = {}
+    for i, row in enumerate(rows):
+        if (row.get('segment_id') != i or row.get('original') != transcript[i]['text']
+                or not isinstance(row.get('text'), str) or not row['text'].strip()
+                or type(row.get('paragraph_end')) is not bool):
+            raise ValueError(f'Invalid reading transcript source mapping at {i}')
+        result[str(i)] = row
+    return result
+
+
 def build(course=None):
     course=load_course(course) if not hasattr(course, 'course_dir') else course
     OUT=course.course_dir
@@ -40,6 +60,7 @@ def build(course=None):
               youtube_source_id=course.youtube_id,video_src=video_src,media_kind=course.media_kind,
               transcript_revision=hashlib.sha256((OUT/'transcript.corrected.json').read_bytes()).hexdigest(),
               manual_edits=ManualEditsStore(OUT,course.id).snapshot())
+    data['reading_transcript'] = load_reading_transcript(OUT/'transcript.reading.json', tx, data['transcript_revision'])
     for segment in segments:
         for section in segment['sections']:
             if not 0<=section['time']<=section['end']<=evidence[-1]['end']:
@@ -50,11 +71,11 @@ def build(course=None):
     output.parent.mkdir(parents=True,exist_ok=True)
     payload=json.dumps(data,ensure_ascii=False).replace('<','\\u003c').replace('\u2028','\\u2028').replace('\u2029','\\u2029')
     html='''<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>COURSE_TITLE｜LectureThread／課脈</title><style>/*READER_CSS*/</style></head>
-<body data-pane="notes"><header><strong>LectureThread／課脈</strong><div class="toolbar"><span class="course-title" title="COURSE_DESCRIPTION">COURSE_TITLE</span><a class="upstream-credit" href="https://github.com/drpwchen/lecture-to-notes" target="_blank" rel="noopener noreferrer">基於 lecture-to-notes · drpwchen</a><span id="layout-storage-status" role="status" hidden></span><div class="reader-controls"><button id="toggle-nav" aria-expanded="false" aria-controls="chapter-nav">章節</button><button id="toggle-transcript" aria-expanded="false" aria-controls="sources">展開逐字稿</button></div></div></header>
-<p class="course-description">COURSE_DESCRIPTION</p><div class="layout"><div id="chapter-dock"><button id="chapter-tab" aria-label="展開章節導航" aria-controls="chapter-nav" aria-expanded="false">章節</button><nav id="chapter-nav" hidden aria-label="課程章節"><h2>章節</h2><input id="search" type="search" aria-label="搜尋章節與講義" placeholder="搜尋章節與講義"><div id="segments"></div></nav></div>
+<body data-pane="notes"><header><strong>LectureThread／課脈</strong><div class="toolbar"><span class="course-title" title="COURSE_DESCRIPTION">COURSE_TITLE</span><details class="course-info"><summary>課程資訊</summary><div class="course-info-body"><strong>COURSE_TITLE</strong><p class="course-description">COURSE_DESCRIPTION</p><a class="upstream-credit" href="https://github.com/drpwchen/lecture-to-notes" target="_blank" rel="noopener noreferrer">基於 lecture-to-notes · drpwchen</a></div></details><span id="layout-storage-status" role="status" hidden></span><div class="reader-controls"><button id="toggle-nav" aria-expanded="false" aria-controls="chapter-nav">章節</button><button id="toggle-transcript" aria-expanded="false" aria-controls="sources">展開逐字稿</button></div></div></header>
+<div class="layout"><div id="chapter-dock"><button id="chapter-tab" aria-label="展開章節導航" aria-controls="chapter-nav" aria-expanded="false">章節</button><nav id="chapter-nav" hidden aria-label="課程章節"><h2>章節</h2><input id="search" type="search" aria-label="搜尋章節與講義" placeholder="搜尋章節與講義"><div id="segments"></div></nav></div>
 <main id="main" aria-label="課程總整理" tabindex="-1"><article class="reading" id="reading"></article></main>
 <div id="transcript-divider" hidden role="separator" tabindex="0" aria-label="調整逐字稿高度" aria-controls="sources" aria-orientation="horizontal" aria-valuemin="18" aria-valuemax="70" aria-valuenow="34" title="上下拖曳調整逐字稿高度；方向鍵微調，Home 恢復"><span></span></div>
-<aside id="sources" hidden aria-label="校正逐字稿"><div class="transcript-header"><button id="close-transcript">收起逐字稿</button><h2>逐字稿對照</h2><p>捲動或點選講義，標亮對應原句。依講解時間區間對照，跨段語句可能重複出現。</p><span id="status" aria-live="polite"></span><span id="speaking-status" role="status"></span><button class="follow" id="follow" aria-pressed="true">跟隨閱讀：開</button><button id="export-edits">匯出手動修訂</button><button id="reload-edits">重新連線</button><p class="edit-storage-note" id="edit-storage-status" role="status">正式修訂以本地檔案為準，正在連線…</p></div><div id="transcript"></div></aside></div>
+<aside id="sources" hidden aria-label="校正逐字稿"><div class="transcript-header"><div class="transcript-heading"><h2>逐字稿</h2><span id="status" aria-live="polite"></span><span id="speaking-status" role="status"></span></div><div class="transcript-actions"><button class="follow" id="follow" aria-pressed="true">跟隨閱讀：開</button><details class="transcript-options"><summary>說明與修訂</summary><div class="transcript-options-body"><p>點文字返回講義；「聽這段」播放完整分組。段落淡底是講義來源，綠色底線跟隨目前播放的文字。</p><p>閱讀版補上標點、整理口語銜接，保留每句原始時間與待核對標記。未提供閱讀版的課程依時間分組。展開「逐句校訂」可查看原句、聽單句或修改文字；人工修訂優先顯示。</p><button id="export-edits">匯出手動修訂</button><button id="reload-edits">重新連線</button><p class="edit-storage-note" id="edit-storage-status" role="status">正在連線修訂檔案…</p></div></details><button id="close-transcript">收起</button></div></div><div id="transcript"></div></aside></div>
 <dialog id="slide-dialog" aria-label="放大投影片"><button id="close-slide">關閉放大</button><div class="slide-detail" id="detail-image"></div></dialog>
 <script type="application/json" id="course-data">__COURSE_PAYLOAD__</script><script>/*READER_JS*/</script></body></html>'''
     html=html.replace('COURSE_TITLE',html_module.escape(course.title)).replace('COURSE_DESCRIPTION',html_module.escape(course.description,quote=True))
