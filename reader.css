@@ -281,3 +281,16 @@ body>header .toolbar{flex:0 0 auto}
 #transcript-divider:hover span,#transcript-divider:focus-visible span,#transcript-divider:active span{opacity:1}
 @media(hover:none){#media-divider span,#transcript-divider span{opacity:.5}}
 @media(max-width:800px){#media-divider::before{right:0;bottom:auto;width:auto;height:1px}}
+
+/* Reading sentences point back to their corrected originals on hover or tap. */
+.reading-sentence{border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-color .12s ease-out}
+.reading-sentence:hover,.reading-sentence.is-peeked{background:#dcebdf}
+.has-reading-paragraph:has(.is-speaking) .reading-paragraph:has(.reading-sentence){color:inherit;text-decoration:none}
+.reading-sentence.is-speaking{color:#21664e;text-decoration:underline;text-decoration-color:#739b87;text-underline-offset:6px}
+#source-peek{position:fixed;z-index:30;max-height:min(50vh,360px);overflow:auto;padding:12px 14px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px #24373029;pointer-events:none}
+#source-peek.is-touch{pointer-events:auto}
+#source-peek p{margin:0;font-size:14px;line-height:1.8}
+#source-peek p+p{margin-top:6px}
+#source-peek .peek-label{font-size:12px;color:var(--muted);font-weight:600}
+#source-peek time{margin-right:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+#source-peek button{margin-top:10px;font-size:12px}

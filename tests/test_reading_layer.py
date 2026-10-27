@@ -26,3 +26,30 @@ def test_rejects_bad_source_mapping(tmp_path,change):
     if change=='blank':p['text']=' '
     path.write_text(json.dumps(doc),encoding='utf-8')
     with pytest.raises(ValueError):load_reading_paragraphs(path,tx,'rev')
+
+
+def with_sentences(doc, sentences):
+    doc['paragraphs'][0]['sentences'] = sentences
+    return doc
+
+
+def test_accepts_sentence_map_with_shared_boundary(tmp_path):
+    path,tx,doc=fixture(tmp_path)
+    with_sentences(doc,[dict(text='pol',source_ids=[0,1]),dict(text='ished',source_ids=[1])])
+    path.write_text(json.dumps(doc),encoding='utf-8')
+    assert load_reading_paragraphs(path,tx,'rev')[0]['sentences'][1]['source_ids']==[1]
+
+
+@pytest.mark.parametrize('sentences',[
+    [dict(text='polish',source_ids=[0,1])],                              # text not split exactly
+    [dict(text='pol',source_ids=[0]),dict(text='ished',source_ids=[0])],  # last original unreachable
+    [dict(text='pol',source_ids=[1]),dict(text='ished',source_ids=[0])],  # out of order
+    [dict(text='pol',source_ids=[0,2]),dict(text='ished',source_ids=[1])],# outside paragraph / gap
+    [dict(text='polished',source_ids=[])],
+    [],
+])
+def test_rejects_bad_sentence_map(tmp_path,sentences):
+    path,tx,doc=fixture(tmp_path)
+    with_sentences(doc,sentences)
+    path.write_text(json.dumps(doc),encoding='utf-8')
+    with pytest.raises(ValueError):load_reading_paragraphs(path,tx,'rev')
