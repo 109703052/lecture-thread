@@ -271,3 +271,13 @@ body>header .toolbar{flex:0 0 auto}
  #reading-head .meta-time{display:inline}
  #reading-status{padding:0 12px}
 }
+
+/* Dividers read as hairlines; the whole 14px track stays draggable and the grip shows on hover or focus. */
+#media-divider,#transcript-divider{position:relative;background:var(--paper);border:0}
+#media-divider::before{content:"";position:absolute;top:0;bottom:0;left:0;width:1px;background:var(--line)}
+#media-divider span,#transcript-divider span{opacity:0;transition:opacity .15s ease-out}
+#media-divider:hover,#media-divider:focus-visible,#transcript-divider:hover,#transcript-divider:focus-visible{background:var(--wash)}
+#media-divider:hover span,#media-divider:focus-visible span,#media-divider:active span,
+#transcript-divider:hover span,#transcript-divider:focus-visible span,#transcript-divider:active span{opacity:1}
+@media(hover:none){#media-divider span,#transcript-divider span{opacity:.5}}
+@media(max-width:800px){#media-divider::before{right:0;bottom:auto;width:auto;height:1px}}
