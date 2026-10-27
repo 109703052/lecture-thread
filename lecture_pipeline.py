@@ -185,6 +185,7 @@ class Worker:
         self.command([ROOT / 'ollama_service.py', *(['stop'] if stop else [])], timeout=90)
 
     def preflight(self):
+        self.require_local_authoring()
         if digest(self.folder / 'job.json') != self.status.get('job_sha256'):
             raise ValueError('任務設定已變動；請建立新任務以免混用不同模型或抽樣設定。')
         if self.config['pipeline_version'] != PIPELINE_VERSION:
@@ -398,7 +399,12 @@ class Worker:
         atomic_json(self.course / 'slide_evidence.json', evidence)
         return [self.course / 'slide_evidence.json']
 
+    def require_local_authoring(self):
+        if (self.course / 'editorial_chapters.json').exists():
+            raise ValueError('此課程已改由 Codex 直接撰寫，禁止舊 worker 回退本機模型；請使用 editorial_publish.py --course '+str(self.manifest))
+
     def author(self):
+        self.require_local_authoring()
         self.ollama()
         self.command([ROOT / 'author_lecture.py', self.course, '--model', self.config['model']])
         return [self.course / name for name in ('authored_notes.json', 'transcript.corrected.json',

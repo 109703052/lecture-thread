@@ -166,6 +166,18 @@ def test_author_preserves_completed_outputs_on_conflict(job, monkeypatch):
     assert not (course / 'authored_notes.json').exists()
 
 
+def test_editorial_course_cannot_fall_back_to_local_author_or_preflight(job, monkeypatch):
+    worker = pipeline.Worker(job)
+    atomic_json(worker.course / 'editorial_chapters.json', {'schema': 1, 'author': 'Codex'})
+    calls = []
+    monkeypatch.setattr(worker, 'ollama', lambda *args, **kwargs: calls.append('ollama'))
+    monkeypatch.setattr(worker, 'command', lambda *args, **kwargs: calls.append('command'))
+    for operation in [worker.preflight, worker.author]:
+        with pytest.raises(ValueError, match='editorial_publish.py'):
+            operation()
+    assert calls == []
+
+
 def test_delivery_checks_coverage_and_raw_hash(job, monkeypatch):
     course = make_author_inputs(job)
     slides = course / 'slides'

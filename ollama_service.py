@@ -49,7 +49,9 @@ try:
 except OSError: pass
 env=os.environ.copy()
 env.update(OLLAMA_HOST='127.0.0.1:11435', OLLAMA_MODELS=str(ROOT/'models/ollama'),
-           OLLAMA_NO_CLOUD='1', OLLAMA_KEEP_ALIVE='0', OLLAMA_MAX_LOADED_MODELS='1',
+           # Reuse the loaded runner between sequential slides instead of reloading
+           # its weights for every image. Worker.finally still stops this server.
+           OLLAMA_NO_CLOUD='1', OLLAMA_KEEP_ALIVE='5m', OLLAMA_MAX_LOADED_MODELS='1',
            OLLAMA_NUM_PARALLEL='1', USERPROFILE=str(ROOT/'tools/ollama-profile'))
 (ROOT/'tools/ollama-profile').mkdir(exist_ok=True)
 with (ROOT/'data/ollama.log').open('ab') as log:
