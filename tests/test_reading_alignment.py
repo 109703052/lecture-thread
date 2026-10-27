@@ -6,6 +6,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from build_reader import align
 from course_config import load_course
+from editorial_content import load_editorial
 COURSE=load_course()
 
 def test_crossing_sentence_maps_to_both_reading_paragraphs():
@@ -18,14 +19,22 @@ def test_crossing_sentence_maps_to_both_reading_paragraphs():
                     reason='Local course export is not distributed with the source')
 def test_delivered_course_and_comparison_workspace():
     data=json.loads((COURSE.course_dir/'reading_alignment.json').read_text(encoding='utf-8'))
-    notes=json.loads((COURSE.course_dir/'authored_notes.json').read_text(encoding='utf-8'))
-    assert len(data['segments'])==len(notes)+1
-    assert sum(len(s['sections']) for s in data['segments'][1:])==sum(len(n['lesson']) for n in notes)
+    editorial=load_editorial(COURSE.course_dir)
+    if editorial:
+        evidence=json.loads((COURSE.course_dir/'slide_evidence.json').read_text(encoding='utf-8'))
+        assert len(data['segments'])==1+len(editorial['chapters'])+len(evidence)
+        assert [s['occurrence_id'] for s in data['segments'] if s.get('occurrence_id')]==[e['occurrence_id'] for e in evidence]
+        assert [i for s in data['segments'][1:1+len(editorial['chapters'])] for p in s['sections'] for i in p['source_ids']]==list(range(len(data['transcript'])))
+    else:
+        notes=json.loads((COURSE.course_dir/'authored_notes.json').read_text(encoding='utf-8'))
+        assert len(data['segments'])==len(notes)+1
+        assert sum(len(s['sections']) for s in data['segments'][1:])==sum(len(n['lesson']) for n in notes)
     assert data['course_id']==COURSE.id
     for s in data['segments']:
         if s['image']:assert (COURSE.web_root/s['image']).is_file()
         for p in s['sections']:
-            assert p['source_ids']==align(p['time'],p['end'],data['transcript'])
+            if s.get('alignment')!='editorial-source-ids':
+                assert p['source_ids']==align(p['time'],p['end'],data['transcript'])
     html=(COURSE.output_html).read_text(encoding='utf-8')
     assert 'preload="none"' in html and '<iframe' not in html
     assert (COURSE.web_root/data['video_src']).is_file()

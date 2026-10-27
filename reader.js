@@ -1,3 +1,4 @@
+let youtubePlayer=null, youtubePoll=null;
 const DATA=JSON.parse(document.getElementById('course-data').textContent);
 const $=s=>document.querySelector(s);
 const state={segment:0,paragraph:-1,follow:true,frame:0};
@@ -5,7 +6,7 @@ let playbackRequest=0;
 let playbackRange=null, playbackTimer=null;
 const PLAYBACK_TAIL=.3;
 let slidesHidden=false, splitFraction=.45;
-let transcriptFraction=null, navPinned=false, transcriptOpen=false;
+let transcriptFraction=null, navPinned=false, transcriptOpen=!!DATA.reading_paragraphs?.length;
 const EDITS_KEY='lecturethread:transcript-edits:'+DATA.youtube_id+':'+DATA.transcript_revision;
 const DRAFTS_KEY=EDITS_KEY+':drafts';
 const LAYOUT_KEY='lecturethread:layout:v1:'+DATA.youtube_id;
@@ -44,10 +45,13 @@ function restoreDrafts(){
  }catch{$('#edit-storage-status').textContent='無法恢復分頁草稿；正式修訂仍以本地檔案為準。';}
 }
 function refreshManualRows(){
+ if(DATA.reading_paragraphs?.length)document.querySelectorAll('[data-reading-ids]').forEach(row=>{
+  row.textContent=readingParagraphText(row.dataset.readingIds.split(',').map(Number));
+ });
  document.querySelectorAll('.utterance').forEach(row=>{
   const id=Number(row.dataset.source),editing=Object.hasOwn(editDrafts,id);
   const text=row.querySelector('.source-text');text.textContent=displayedTranscriptText(id,row);text.hidden=editing;
-  row.querySelector('.manual-edit-label').hidden=!manualEdits[id];
+
   row.querySelector('.transcript-editor').hidden=!editing;
   if(editing&&draftBases[id]?.conflict&&!savingEdits.has(id)){
    row.querySelector('[data-edit="save"]').textContent='確認並儲存此草稿';
@@ -64,6 +68,7 @@ function acceptSnapshot(snapshot){
 }
 async function loadManualEdits(){
  storeReady=false;
+ $('#edit-storage-status').textContent='正在連線本地修訂服務…';
  try{
   if(location.protocol!=='http:'||!['127.0.0.1','localhost'].includes(location.hostname))throw Error('請以 serve_reader.py 的本機 HTTP 網址開啟才能寫入檔案；草稿仍可保留。');
   const response=await fetch('/api/transcript-edits',{cache:'no-store'}),snapshot=await response.json();
@@ -81,18 +86,26 @@ async function loadManualEdits(){
   }catch{}
   document.querySelectorAll('[data-source-edit]').forEach(input=>{if(Object.hasOwn(editDrafts,input.dataset.sourceEdit))input.value=editDrafts[input.dataset.sourceEdit];});
   refreshManualRows();
-  $('#edit-storage-status').textContent='正式修訂儲存於本地檔案；未儲存草稿留在目前分頁，重整可恢復。';
- }catch(error){$('#edit-storage-status').textContent=editRequestError(error);}
+  $('#edit-storage-status').textContent='已連線本地修訂服務，可儲存。';
+ }catch(error){$('#edit-storage-status').textContent='未連線：'+editRequestError(error);}
 }
 function transcriptText(id){return manualEdits[id]?.corrected??DATA.transcript[id].text;}
 function readingText(id){
  const row=DATA.reading_transcript?.[id];
- return !manualEdits[id]&&row?.original===DATA.transcript[id].text?row.text:transcriptText(id);
+ return row?.original===transcriptText(id)?row.text:transcriptText(id);
+}
+function readingParagraph(ids){
+ return DATA.reading_paragraphs?.find(p=>p.source_ids.length===ids.length&&p.source_ids.every((id,i)=>id===ids[i]));
+}
+function readingParagraphText(ids){
+ const p=readingParagraph(ids);
+ return p&&p.originals.every((text,i)=>text===transcriptText(ids[i]))?p.text:ids.map(transcriptText).join('，');
 }
 function displayedTranscriptText(id,row){
  return row?.closest?.('.transcript-group')?.classList.contains('show-details')?transcriptText(id):readingText(id);
 }
 async function editTranscript(id,action){
+ if(DATA.read_only)return;
  const row=$(`.utterance[data-source="${id}"]`);if(!row)return;
  if(savingEdits.has(id))return;
  const editor=row.querySelector('.transcript-editor'),input=editor.querySelector('textarea'),message=editor.querySelector('[role="status"]');
@@ -123,13 +136,13 @@ async function editTranscript(id,action){
    }
    if(!response.ok){if(response.status===403)storeReady=false;throw Error(result.error||'本地儲存失敗。');}
    acceptSnapshot(result);delete editDrafts[id];delete draftBases[id];persistDrafts();refreshManualRows();
-   $('#edit-storage-status').textContent='已寫入 transcript.manual-edits.json；原始逐字稿與 AI 校正版不變。';
+   $('#edit-storage-status').textContent='已連線 · 修訂已儲存到本地。';
   }catch(error){message.textContent=editRequestError(error)+' 草稿未刪除，可重試或匯出備份。';return;}
   finally{savingEdits.delete(id);input.readOnly=false;editor.querySelectorAll('button').forEach(button=>button.disabled=false);}
  }
  delete editDrafts[id];delete draftBases[id];persistDrafts();message.textContent='';editor.hidden=true;
  const text=row.querySelector('.source-text');text.textContent=displayedTranscriptText(id,row);text.hidden=false;
- row.querySelector('.manual-edit-label').hidden=!manualEdits[id];editor.querySelector('[data-edit="save"]').textContent='儲存';
+ editor.querySelector('[data-edit="save"]').textContent='儲存';
  if(row.isConnected)row.querySelector('[data-edit="open"]').focus({preventScroll:true});
 }
 function exportManualEdits(){
@@ -141,6 +154,10 @@ function exportManualEdits(){
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function updateSpeaking(time){
+ if(time!==null&&Number.isFinite(time)&&DATA.alignment?.startsWith('editorial-')){
+  const at=playbackRange&&!playbackRange.free?Math.min(time,playbackRange.end-.001):time;
+  syncReadingSlide({time:at});
+ }
  let id=-1;
  if(time!==null&&playbackRange){
   const at=playbackRange.free?time:Math.min(time,playbackRange.end-.001);
@@ -155,7 +172,8 @@ function updateSpeaking(time){
  });
  const status=$('#speaking-status');if(status)status.textContent=id<0?'':`正在播放 ${stamp(DATA.transcript[id].start)} 的原句`;
  if(id>=0&&state.follow&&!$('#sources').contains(document.activeElement)&&!Object.keys(editDrafts).length){
-  const row=$(`.utterance[data-source="${id}"]`),pane=$('#sources');
+  const source=$(`.utterance[data-source="${id}"]`),group=source?.closest?.('.has-reading-paragraph');
+  const row=group&&!group.classList.contains('show-details')?group:source,pane=$('#sources');
   if(row&&pane.clientHeight){
    const r=row.getBoundingClientRect(),p=pane.getBoundingClientRect(),top=p.top+$('.transcript-header').offsetHeight;
    if(r.top<top||r.bottom>p.bottom)pane.scrollTo({top:Math.max(0,pane.scrollTop+r.top-top-12),behavior:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
@@ -185,21 +203,45 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 function inlineText(s){return esc(s).replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}
 function stamp(t){return String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0')}
 function sourceIds(section){return section.source_ids}
+let sourceNavLimit=60;
+function isSourceSegment(segment){return segment.occurrence_id!==undefined;}
+function adjacentSegment(index,direction){
+ const source=isSourceSegment(DATA.segments[index]);
+ for(let i=index+direction;i>=0&&i<DATA.segments.length;i+=direction){
+  if(isSourceSegment(DATA.segments[i])===source)return i;
+ }
+ return -1;
+}
 function renderNav(filter=''){
  let group='';
  $('#segments').innerHTML=DATA.segments.map((s,i)=>{
+  if(isSourceSegment(s))return '';
   if(filter&&!(`${s.title} ${s.region} ${s.sections.map(p=>p.text).join(' ')}`).toLowerCase().includes(filter.toLowerCase()))return '';
   let label=s.region!==group?`<div class="nav-group">${esc(s.region)}</div>`:'';group=s.region;
-  return label+`<button class="segment" data-segment="${i}" aria-current="${i===state.segment}"><small>SEG ${String(i+1).padStart(2,'0')} · ${stamp(s.start)}–${stamp(s.end)}</small>${esc(s.title)}</button>`;
- }).join('');
+  return label+`<button class="segment" data-segment="${i}" aria-current="${i===state.segment}"><small>${i===0?'總覽':'章節 '+i} · ${stamp(s.start)}–${stamp(s.end)}</small>${esc(s.title)}</button>`;
+ }).join('')||'<p class="nav-empty">沒有符合的章節。</p>';
+ const appendix=$('#source-nav');
+ if(appendix){appendix.hidden=!DATA.segments.some(isSourceSegment);if(appendix.open)renderSourceNav();}
+}
+function renderSourceNav(){
+ const filter=$('#source-search').value.trim().toLowerCase();
+ const matches=DATA.segments.map((s,i)=>({s,i})).filter(({s})=>isSourceSegment(s)&&(!filter||s.title.toLowerCase().includes(filter)||stamp(s.start).includes(filter)));
+ $('#source-segments').innerHTML=matches.slice(0,sourceNavLimit).map(({s,i})=>`<button class="segment" data-segment="${i}" aria-current="${i===state.segment}"><small>${stamp(s.start)}–${stamp(s.end)}</small>${esc(s.title)}</button>`).join('')||'<p class="nav-empty">沒有符合的原始畫面。</p>';
+ $('#source-more').hidden=matches.length<=sourceNavLimit;
+ $('#source-count').textContent=`顯示 ${Math.min(matches.length,sourceNavLimit)}／${matches.length} 個畫面`;
 }
 function renderNotes(s,index){return ` ${s.sections.map((p,i)=>`<section class="lesson" data-paragraph="${i}" tabindex="0" aria-label="${esc(p.heading)}"><div class="lesson-head"><h2>${esc(p.heading)}</h2><div class="lesson-actions"><button class="time" data-paragraph="${i}" aria-label="對照 ${stamp(p.time)} 的逐字稿">${stamp(p.time)}–${stamp(p.end)}</button><button data-play-section="${i}" ${p.source_ids.length?'':'disabled'} aria-label="聽此段：${esc(p.heading)}">聽此段</button></div></div><p>${esc(p.text)}</p><div data-audio-section="${i}" class="audio-slot"></div></section>`).join('')}
  ${s.caution?`<div class="caution"><h2>補充與待核對</h2><p>${inlineText(s.caution)}</p></div>`:''}
- <div class="paging"><button id="previous" ${index===0?'disabled':''}>上一節</button><button id="next" ${index===DATA.segments.length-1?'disabled':''}>下一節</button></div>`;}
+ <div class="paging"><button id="previous" ${adjacentSegment(index,-1)<0?'disabled':''}>上一節</button><button id="next" ${adjacentSegment(index,1)<0?'disabled':''}>下一節</button></div>`;}
 // Group only adjacent source IDs within the same authored topic/slide occurrence.
 // Limits are reading heuristics, not a claim of semantic inference.
 function transcriptGroups(s){
  const ids=[...new Set(s.sections.flatMap(sourceIds))].sort((a,b)=>a-b), groups=[];
+ if(DATA.reading_paragraphs?.length){
+  const included=new Set(ids);
+  // Keep the complete authored paragraph when a chapter edge intersects it.
+  return DATA.reading_paragraphs.filter(p=>p.source_ids.some(id=>included.has(id))).map(p=>p.source_ids);
+ }
  const occurrence=id=>DATA.segments?.findIndex((p,i)=>i>0&&p.start<=DATA.transcript[id].start&&DATA.transcript[id].start<p.end);
  const owner=id=>{
   const t=DATA.transcript[id],mid=(t.start+t.end)/2;
@@ -221,11 +263,12 @@ function renderTranscript(s){
  const groups=transcriptGroups(s);
  return groups.length?groups.map(ids=>{
   const first=DATA.transcript[ids[0]],last=DATA.transcript[ids.at(-1)];
-  return `<section class="transcript-group" aria-label="逐字稿 ${stamp(first.start)} 至 ${stamp(last.end)}">
-   <div class="group-tools"><time>${stamp(first.start)}–${stamp(last.end)}</time><button data-play-group="${ids.join(',')}">聽這段</button><button data-video-group="${ids.join(',')}" ${DATA.media_kind==='audio'?'disabled':''}>觀看影片</button><button data-group-details aria-expanded="false">逐句校訂</button></div>
-   <div class="group-text">${ids.map(id=>{
+  const authored=!!readingParagraph(ids);
+  return `<section class="transcript-group${authored?' has-reading-paragraph':''}" aria-label="逐字稿 ${stamp(first.start)} 至 ${stamp(last.end)}">
+   <div class="group-tools"><time>${stamp(first.start)}–${stamp(last.end)}</time><button data-play-group="${ids.join(',')}">聽這段</button><button data-video-group="${ids.join(',')}" ${DATA.media_kind==='audio'?'disabled':''}>觀看影片</button><button data-group-details aria-expanded="false">${authored?'查看校訂原話':'逐句校訂'}</button></div>
+   ${authored?`<p class="reading-paragraph group-text" data-reading-ids="${ids.join(',')}" data-return="${ids[0]}" role="button" tabindex="0" aria-label="返回對應講義">${esc(readingParagraphText(ids))}</p>`:''}<div class="group-text original-utterances">${ids.map(id=>{
     const t=DATA.transcript[id],editing=Object.hasOwn(editDrafts,id);
-  return `<div class="utterance" data-source="${id}"><div class="source-tools"><time>${stamp(t.start)}</time><button data-play="${id}" aria-label="聽 ${stamp(t.start)} 此句">聽此句</button><button data-video="${id}" ${DATA.media_kind==='audio'?'disabled title="此課程僅提供音訊"':''} aria-label="觀看 ${stamp(t.start)} 此句的影片">觀看影片</button><button data-edit="open" data-edit-id="${id}" aria-label="編輯 ${stamp(t.start)} 的逐字稿">編輯</button><a href="${youtubeAt(t.start)}" target="_blank" rel="noopener noreferrer" data-youtube ${DATA.youtube_source_id===''?'hidden':''}> YouTube </a></div><span class="speaking-label" hidden>正在播放</span><small class="manual-edit-label" ${manualEdits[id]?'':'hidden'}>已手動修訂</small><span role="button" tabindex="0" class="source-text" data-return="${id}" aria-label="返回 ${stamp(t.start)} 對應講義" ${editing?'hidden':''}>${esc(readingText(id))}</span><div class="transcript-editor" ${editing?'':'hidden'}><textarea data-source-edit="${id}" aria-label="修改 ${stamp(t.start)} 的逐字稿" rows="3">${esc(editing?editDrafts[id]:transcriptText(id))}</textarea><div class="edit-actions"><button data-edit="save" data-edit-id="${id}">${draftBases[id]?.conflict?'確認並儲存此草稿':'儲存'}</button><button data-edit="cancel" data-edit-id="${id}">取消</button><button data-edit="latest" data-edit-id="${id}">使用本地最新文字</button><span>Ctrl+Enter 儲存 · Esc 取消</span></div><p role="status">${draftBases[id]?.conflict?esc(conflictMessage(id)):''}</p></div>${t.review_note?`<small>待核對：${esc(t.review_note)}</small>`:''}<div data-audio-source="${id}" class="audio-slot"></div></div>`;
+  return `<div class="utterance" data-source="${id}"><div class="source-tools"><time>${stamp(t.start)}</time><button data-play="${id}" aria-label="聽 ${stamp(t.start)} 此句">聽此句</button><button data-video="${id}" ${DATA.media_kind==='audio'?'disabled title="此課程僅提供音訊"':''} aria-label="觀看 ${stamp(t.start)} 此句的影片">觀看影片</button>${DATA.read_only?'':`<button data-edit="open" data-edit-id="${id}" aria-label="編輯 ${stamp(t.start)} 的校訂原話">校訂原話</button>`}<a href="${youtubeAt(t.start)}" target="_blank" rel="noopener noreferrer" data-youtube ${DATA.youtube_source_id===''?'hidden':''}> YouTube </a></div><span class="speaking-label" hidden>正在播放</span><span role="button" tabindex="0" class="source-text" data-return="${id}" aria-label="返回 ${stamp(t.start)} 對應講義" ${editing?'hidden':''}>${esc(readingText(id))}</span><div class="transcript-editor" ${editing?'':'hidden'}><textarea data-source-edit="${id}" aria-label="修改 ${stamp(t.start)} 的校訂原話" rows="3">${esc(editing?editDrafts[id]:transcriptText(id))}</textarea><div class="edit-actions"><button data-edit="save" data-edit-id="${id}">${draftBases[id]?.conflict?'確認並儲存此草稿':'儲存'}</button><button data-edit="cancel" data-edit-id="${id}">取消</button><button data-edit="latest" data-edit-id="${id}">使用本地最新文字</button><span>Ctrl+Enter 儲存 · Esc 取消</span></div><p role="status">${draftBases[id]?.conflict?esc(conflictMessage(id)):''}</p></div><div data-audio-source="${id}" class="audio-slot"></div></div>`;
    }).join('')}</div><div class="audio-slot" data-audio-group="${ids[0]}"></div></section>`;
  }).join(''):'<p class="empty">這是短暫轉場，沒有獨立講解語句。請對照前後節。</p>';
 }
@@ -330,8 +373,15 @@ function trackReading(){
  if(best)setParagraph(Number(best.dataset.paragraph));
 }
 function youtubeAt(t){const id=DATA.youtube_source_id??DATA.youtube_id;return id?'https://www.youtube.com/watch?v='+encodeURIComponent(id)+'&t='+Math.max(0,Math.floor(t))+'s':''}
+
 function stopVideo(){
  playbackRequest++;
+ if(DATA.video_provider==='youtube'){
+ clearInterval(youtubePoll);youtubePoll=null;
+ if(youtubePlayer){youtubePlayer.destroy();youtubePlayer=null;}
+ const yt=$('#youtube-player');if(yt)yt.remove();
+ const localVideo=$('#lesson-video');if(localVideo)localVideo.hidden=false;
+ }
  clearTimeout(playbackTimer);playbackTimer=null;playbackRange=null;
  updateSpeaking(null);
  for(const selector of ['#lesson-video','#lesson-audio']){
@@ -355,6 +405,7 @@ function playSection(index){
 function playRange(start,end,label,audioSlot=null){
  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return;
  if(!audioSlot&&DATA.media_kind==='audio')return;
+ if(!audioSlot&&DATA.video_provider==='youtube'){playYouTubeRange(start,end,label);return;}
  // Listening stays beside the requested text and never navigates or selects notes.
  const positions=['#notes-scroll','#sources'].map(selector=>$(selector)).filter(pane=>pane.clientHeight>0).map(pane=>({pane,top:pane.scrollTop}));
  const wasVideo=!$('#video-view').hidden;
@@ -414,8 +465,8 @@ function playRange(start,end,label,audioSlot=null){
   pendingSeek=Math.abs(v.currentTime-target)>.001?target:null;v.currentTime=target;
   v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
  };
- v.onerror=()=>{if(isCurrent()){clearTimeout(playbackTimer);playbackTimer=null;updateSpeaking(null);message.textContent='本機媒體無法載入，可重按播放或使用該句的 YouTube 連結。';}};
- v.onloadedmetadata=seek;v.src=DATA.video_src;v.load();
+ v.onerror=()=>{if(isCurrent()){clearTimeout(playbackTimer);playbackTimer=null;updateSpeaking(null);message.textContent=(DATA.read_only?'媒體':'本機媒體')+'無法載入，可重按播放或使用該句的 YouTube 連結。';}};
+ v.onloadedmetadata=seek;v.src=audio?(DATA.audio_src||DATA.video_src):DATA.video_src;v.load();
  if(!audio||wasVideo)updateMediaVisibility();
  if(audio)positions.forEach(({pane,top})=>{pane.scrollTop=top;});
 }
@@ -450,9 +501,12 @@ document.addEventListener('keydown',e=>{
 });
 $('#main').addEventListener('scroll',()=>{if(!state.frame)state.frame=requestAnimationFrame(trackReading)},{passive:true});
 $('#search').addEventListener('input',e=>renderNav(e.target.value));
+$('#source-nav').addEventListener('toggle',e=>{if(e.target.open)renderSourceNav();});
+$('#source-search').addEventListener('input',()=>{sourceNavLimit=60;renderSourceNav();});
+$('#source-more').addEventListener('click',()=>{sourceNavLimit+=60;renderSourceNav();});
 function setNav(open,focus=true){
  navPinned=open&&focus;
- $('#chapter-nav').hidden=!open;$('#chapter-dock').classList.toggle('is-open',open);
+ $('#chapter-nav').hidden=!open;$('#chapter-nav').inert=!open;$('#chapter-dock').classList.toggle('is-open',open);
  for(const selector of ['#toggle-nav','#chapter-tab'])$(selector).setAttribute('aria-expanded',String(open));
  if(open&&focus)$('#search').focus();
 }
@@ -466,19 +520,17 @@ function setTranscriptHeight(fraction,remember=false){
  const actualFraction=height/available;layout.style.setProperty('--transcript-height',height+'px');
  const bar=$('#transcript-divider');bar.setAttribute('aria-valuemin',Math.round(min/available*100));bar.setAttribute('aria-valuemax',Math.round(max/available*100));bar.setAttribute('aria-valuenow',Math.round(actualFraction*100));bar.setAttribute('aria-valuetext',Math.round(height)+' 像素');
 }
-$('#chapter-dock').addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'&&$('#chapter-nav').hidden)setNav(true,false);});
-$('#chapter-dock').addEventListener('pointerleave',()=>{if(!navPinned&&!$('#chapter-dock').contains(document.activeElement))setNav(false,false);});
-$('#chapter-dock').addEventListener('focusout',e=>{if(!navPinned&&!$('#chapter-dock').contains(e.relatedTarget))setNav(false,false);});
 function setTranscript(open,remember=true,focus=true){
  transcriptOpen=open;if(remember)persistLayoutPreferences();
  $('#sources').hidden=!open;$('#transcript-divider').hidden=!open;document.querySelector('.layout').classList.toggle('transcript-open',open);
  if(open)setTranscriptHeight(transcriptFraction??(window.innerWidth<=800?.44:.34));
- const button=$('#toggle-transcript');button.setAttribute('aria-expanded',String(open));button.textContent=open?'收起逐字稿':'展開逐字稿';
+ const button=$('#toggle-transcript');button.setAttribute('aria-expanded',String(open));button.textContent=(open?'收起':'展開')+(DATA.reading_paragraphs?.length?'閱讀稿':'逐字稿');
  if(open){scrollTranscript();if(focus)$('#close-transcript').focus({preventScroll:true});}else if(focus)button.focus({preventScroll:true});
 }
 function syncReadingSlide(section){
  const current=DATA.segments[state.segment];
- const slide=current.image?current:DATA.segments.find(s=>s.image&&s.start<=section.time&&s.end>section.time);
+ const occurrence=DATA.alignment?.startsWith('editorial-')?DATA.segments.find(s=>s.occurrence_id&&s.image&&s.start<=section.time&&s.end>section.time):null;
+ const slide=occurrence||(current.image?current:DATA.segments.find(s=>s.image&&s.start<=section.time&&s.end>section.time));
  if(!slide?.image)return;
  const view=$('#slide-view');
  if(view.dataset.image!==slide.image){view.dataset.image=slide.image;view.innerHTML=`<img draggable="false" src="${esc(slide.image)}" alt="${esc(slide.title)}的投影片">`;}
@@ -486,7 +538,9 @@ function syncReadingSlide(section){
 }
 document.addEventListener('click',e=>{
  if(e.target.id==='toggle-nav')setNav($('#chapter-nav').hidden);
- if(e.target.id==='chapter-tab')setNav(!navPinned);
+ if(e.target.id==='chapter-tab')setNav($('#chapter-nav').hidden);
+ if(e.target.id==='close-nav')setNav(false);
+ if(!$('#chapter-nav').hidden&&!e.target.closest('#chapter-dock,#toggle-nav'))setNav(false,false);
  if(e.target.id==='toggle-transcript')setTranscript($('#sources').hidden);
  if(e.target.id==='close-transcript')setTranscript(false);
  if(e.target.id==='enlarge-slide'){
@@ -503,7 +557,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('click',e=>{
  const details=e.target.closest('[data-group-details]');
- if(details){const group=details.closest('.transcript-group'),open=!group.classList.contains('show-details');group.classList.toggle('show-details',open);details.setAttribute('aria-expanded',String(open));details.textContent=open?'收起校訂':'逐句校訂';refreshManualRows();return;}
+ if(details){const group=details.closest('.transcript-group'),open=!group.classList.contains('show-details');group.classList.toggle('show-details',open);details.setAttribute('aria-expanded',String(open));details.textContent=group.classList.contains('has-reading-paragraph')?(open?'返回閱讀稿':'查看校訂原話'):(open?'收起校訂':'逐句校訂');refreshManualRows();return;}
  const groupPlay=e.target.closest('[data-play-group],[data-video-group]');
  if(groupPlay){const video=groupPlay.hasAttribute('data-video-group'),ids=(video?groupPlay.dataset.videoGroup:groupPlay.dataset.playGroup).split(',').map(Number);playRange(DATA.transcript[ids[0]].start,DATA.transcript[ids.at(-1)].end,'這段',video?null:$(`[data-audio-group="${ids[0]}"]`));return;}
  const edit=e.target.closest('[data-edit]');if(edit){editTranscript(Number(edit.dataset.editId),edit.dataset.edit);return}
@@ -519,7 +573,7 @@ document.addEventListener('click',e=>{
  if(e.target.id==='hide-video'||e.target.id==='stop-playback'){hideVideo();return}
  if(e.target.closest('#inline-player'))return;
  const nav=e.target.closest('[data-segment]');
- if(nav){showSegment(Number(nav.dataset.segment));document.body.dataset.pane='notes';setNav(false);return}
+ if(nav){showSegment(Number(nav.dataset.segment));document.body.dataset.pane='notes';setNav(false);$('#toggle-nav').focus();return}
  const panel=e.target.closest('[data-pane-choice]');
  if(panel){document.body.dataset.pane=panel.dataset.paneChoice;if(panel.dataset.paneChoice==='transcript')scrollTranscript();return}
  const paragraph=e.target.closest('[data-paragraph]');
@@ -532,8 +586,8 @@ document.addEventListener('click',e=>{
   if(i!==undefined){document.body.dataset.pane='notes';setParagraph(i);$(`.lesson[data-paragraph="${i}"]`).scrollIntoView({block:'start',behavior:'auto'})}
   return;
  }
- if(e.target.id==='previous')showSegment(state.segment-1);
- if(e.target.id==='next')showSegment(state.segment+1);
+ if(e.target.id==='previous')showSegment(adjacentSegment(state.segment,-1));
+ if(e.target.id==='next')showSegment(adjacentSegment(state.segment,1));
  if(e.target.id==='follow'){state.follow=!state.follow;e.target.setAttribute('aria-pressed',String(state.follow));e.target.textContent=state.follow?'跟隨閱讀：開':'跟隨閱讀：關';if(state.follow)scrollTranscript()}
 });
 document.addEventListener('keydown',e=>{
@@ -556,8 +610,61 @@ new ResizeObserver(refreshReadingLayout).observe($('#main'));
 document.addEventListener('input',e=>{if(e.target.matches('[data-source-edit]')){editDrafts[e.target.dataset.sourceEdit]=e.target.value;persistDrafts();}});
 window.addEventListener('beforeunload',e=>{if(savingEdits.size||Object.entries(editDrafts).some(([id,text])=>text!==transcriptText(id))){e.preventDefault();e.returnValue='';}});
 restoreLayoutPreferences();
-restoreDrafts();
+if(!DATA.read_only)restoreDrafts();
 const initial=Number(location.hash.match(/^#seg-(\d+)$/)?.[1]||1)-1;
 showSegment(Math.max(0,Math.min(initial,DATA.segments.length-1)));
 setTranscript(transcriptOpen,false,false);
-loadManualEdits();
+if(!DATA.read_only)loadManualEdits();
+
+let youtubeAPI=null;
+function loadYouTubeAPI(){
+ if(window.YT?.Player)return Promise.resolve(window.YT);
+ if(youtubeAPI)return youtubeAPI;
+ youtubeAPI=new Promise((resolve,reject)=>{
+  const timeout=setTimeout(()=>{youtubeAPI=null;reject(Error('YouTube 載入逾時，請重試或開啟原影片。'));},15000);
+  window.onYouTubeIframeAPIReady=()=>{clearTimeout(timeout);resolve(window.YT);};
+  const script=document.createElement('script');script.src='https://www.youtube.com/iframe_api';
+  script.onerror=()=>{clearTimeout(timeout);youtubeAPI=null;reject(Error('無法連線 YouTube，請重試或開啟原影片。'));};
+  document.head.append(script);
+ });
+ return youtubeAPI;
+}
+async function playYouTubeRange(start,end,label){
+ stopVideo();
+ const request=playbackRequest;
+ playbackRange={start,end,label,audio:false,free:false};
+ $('#media-area').classList.add('playing');$('#slide-view').hidden=true;
+ $('#video-view').hidden=false;$('#video-tools').hidden=false;$('#lesson-video').hidden=true;
+ $('#video-youtube').href=youtubeAt(start);
+ const message=$('#video-message');message.textContent='正在載入 YouTube…';
+ const mount=document.createElement('div');mount.id='youtube-player';$('#video-view').append(mount);
+ updateMediaVisibility();
+ try{
+  const YT=await loadYouTubeAPI();if(request!==playbackRequest)return;
+  let finished=false,lastTime=start,lastWall=performance.now();
+  youtubePlayer=new YT.Player(mount,{width:'100%',height:'100%',videoId:DATA.youtube_source_id,
+   playerVars:{playsinline:1,origin:location.origin},events:{
+    onReady:event=>{
+     if(request!==playbackRequest)return;
+     message.textContent='若未自動播放，請按 YouTube 播放鍵。';
+     event.target.loadVideoById({videoId:DATA.youtube_source_id,startSeconds:start});
+     youtubePoll=setInterval(()=>{
+      if(request!==playbackRequest||!youtubePlayer)return;
+      const t=youtubePlayer.getCurrentTime(),now=performance.now();
+      if(youtubePlayer.getPlayerState()!==1){lastTime=t;lastWall=now;return;}
+      const expected=(now-lastWall)/1000*(youtubePlayer.getPlaybackRate()||1);
+      if(t<lastTime-1||t-lastTime>expected+2)playbackRange.free=true;
+      lastTime=t;lastWall=now;
+      updateSpeaking(t);if(playbackRange.free)syncPlaybackPosition(t);
+      if(!playbackRange.free&&t>=end+PLAYBACK_TAIL){finished=true;youtubePlayer.pauseVideo();message.textContent=label+'已播完；按播放可繼續。';}
+     },100);
+    },
+    onStateChange:event=>{
+     if(request!==playbackRequest)return;
+     if(event.data===1){if(finished){playbackRange.free=true;finished=false;}message.textContent='';}
+     else updateSpeaking(null);
+    },
+    onError:()=>{if(request===playbackRequest)message.textContent='此影片無法嵌入播放，請使用「在 YouTube 開啟」。';}
+   }});
+ }catch(error){if(request===playbackRequest)message.textContent=error.message;}
+}

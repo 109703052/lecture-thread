@@ -126,3 +126,25 @@ test('free playback highlights the actual sentence outside the initial range',()
  assert.equal(t.rows[2]['is-speaking'],true);assert.equal(t.rows[0]['is-speaking'],false);
  t.context.updateSpeaking(.5);assert.equal(t.rows[0]['is-speaking'],true);
 });
+
+test('authored reading uses all original snapshots and falls back after a saved correction',async()=>{
+ const t=transcript();t.DATA.reading_paragraphs=[{source_ids:[0,1],originals:['原句一','原句二'],text:'修順的合段'}];
+ await t.context.loadManualEdits();
+ assert.equal(t.context.readingParagraphText([0,1]),'修順的合段');
+ await t.context.editTranscript(0,'open');
+ assert.equal(t.element('.utterance[data-source="0"] .transcript-editor textarea').value,'原句一');
+ t.draft(0,'新校字');await t.context.editTranscript(0,'save');
+ assert.equal(t.backend.edits[0].corrected,'新校字');
+ assert.equal(t.context.readingParagraphText([0,1]),'新校字，原句二');
+ assert.equal(t.DATA.reading_paragraphs[0].text,'修順的合段');
+ assert.equal(t.DATA.transcript[0].text,'原句一');
+});
+
+test('reading can be authored from existing manual corrections without treating polish as original',async()=>{
+ const t=transcript();t.backend.edits[0]={corrected:'已校字'};
+ t.DATA.reading_paragraphs=[{source_ids:[0,1],originals:['已校字','原句二'],text:'另外修順'}];
+ await t.context.loadManualEdits();
+ assert.equal(t.context.readingParagraphText([0,1]),'另外修順');
+ await t.context.editTranscript(0,'open');
+ assert.equal(t.element('.utterance[data-source="0"] .transcript-editor textarea').value,'已校字');
+});

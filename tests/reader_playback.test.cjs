@@ -239,3 +239,10 @@ test('audio-only course keeps listening available and refuses video playback',()
  context.playSource(0);audio.onloadedmetadata();assert.equal(audio.paused,false);
  context.playSource(1,true);assert.equal(audio.paused,false);assert.equal(video.getAttribute('src'),null);
 });
+
+test('standalone audio uses the published audio URL and preserves timed stopping',()=>{
+ const {context,audio}=reader();context.DATA.audio_src='https://media.example.test/lecture.m4a';
+ context.playSource(0);assert.equal(audio.src,context.DATA.audio_src);
+ audio.onloadedmetadata();assert.equal(audio.currentTime,12);
+ audio.currentTime=14.4;audio.ontimeupdate();assert.equal(audio.paused,true);
+});

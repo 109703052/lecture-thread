@@ -33,7 +33,7 @@ function drawer() {
  for(const id of ['#chapter-nav','#chapter-dock','#toggle-nav','#chapter-tab','#search','#sources','#transcript-divider','#toggle-transcript','#close-transcript'])elements[id]={hidden:true,attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v},contains(el){return el===this},focus(){focused++},addEventListener(type,fn){listeners[type]=fn}};
  const layout={clientHeight:800,style:{setProperty(k,v){this[k]=v}},classList:{toggle(){}}};
  const document={activeElement:null,querySelector(){return layout}};
- const context=vm.createContext({$:key=>elements[key],document,window:{innerWidth:1440},scrollTranscript(){},persistLayoutPreferences(){}});
+ const context=vm.createContext({DATA:{},$:key=>elements[key],document,window:{innerWidth:1440},scrollTranscript(){},persistLayoutPreferences(){}});
  vm.runInContext('let navPinned=false,transcriptFraction=null,transcriptOpen=false;'+source.slice(source.indexOf('function setNav('),source.indexOf('function syncReadingSlide(')),context);
  return {context,elements,layout,listeners,focusCount:()=>focused};
 }
@@ -46,13 +46,12 @@ test('drawer height stays bounded and retains its ratio when reopened',()=>{
  c.setTranscript(true);assert.equal(layout.style['--transcript-height'],expanded);assert.notEqual(initial,expanded);
  layout.clientHeight=280;c.setTranscriptHeight(.7);assert.ok(parseFloat(layout.style['--transcript-height'])<=86);
 });
-test('mouse reveals chapters without stealing focus; click-pinned navigation stays open',()=>{
+test('chapter drawer changes state immediately and never opens on hover',()=>{
  const {context:c,elements,listeners,focusCount}=drawer();
- listeners.pointerenter({pointerType:'touch'});assert.equal(elements['#chapter-nav'].hidden,true);
- listeners.pointerenter({pointerType:'mouse'});assert.equal(elements['#chapter-nav'].hidden,false);assert.equal(focusCount(),0);
- listeners.pointerleave();assert.equal(elements['#chapter-nav'].hidden,true);
- c.setNav(true);assert.equal(focusCount(),1);listeners.pointerleave();assert.equal(elements['#chapter-nav'].hidden,false);
- c.setNav(false);assert.equal(elements['#chapter-tab'].attrs['aria-expanded'],'false');
+ assert.equal(listeners.pointerenter,undefined);
+ c.setNav(true);assert.equal(elements['#chapter-nav'].hidden,false);assert.equal(elements['#chapter-nav'].inert,false);assert.equal(focusCount(),1);
+ c.setNav(false);assert.equal(elements['#chapter-nav'].hidden,true);assert.equal(elements['#chapter-nav'].inert,true);
+ c.setNav(true);assert.equal(elements['#chapter-tab'].attrs['aria-expanded'],'true');
 });
 
 function preferences(storage) {
@@ -63,7 +62,7 @@ function preferences(storage) {
  };
  const layout={clientHeight:800,style:{setProperty(){}}};
  const c=vm.createContext({DATA:{youtube_id:'course-a'},localStorage:storage,$:key=>elements[key],window:{innerWidth:1440},document:{querySelector(){return layout}}});
- vm.runInContext('let splitFraction=.45,transcriptFraction=null,transcriptOpen=false;'+source.slice(source.indexOf('const LAYOUT_KEY='),source.indexOf('let manualEdits='))+source.slice(source.indexOf('function setSplit('),source.indexOf('function updateMediaVisibility('))+source.slice(source.indexOf('function setTranscriptHeight('),source.indexOf("$('#chapter-dock').addEventListener")),c);
+ vm.runInContext('let splitFraction=.45,transcriptFraction=null,transcriptOpen=false;'+source.slice(source.indexOf('const LAYOUT_KEY='),source.indexOf('let manualEdits='))+source.slice(source.indexOf('function setSplit('),source.indexOf('function updateMediaVisibility('))+source.slice(source.indexOf('function setTranscriptHeight('),source.indexOf('function syncReadingSlide(')),c);
  return {c,layout,elements,values:()=>JSON.parse(vm.runInContext('JSON.stringify([splitFraction,transcriptFraction])',c))};
 }
 test('explicit layout changes survive a fresh page; resize does not overwrite preferred height',()=>{
