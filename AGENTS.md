@@ -10,3 +10,11 @@
 - Do not commit videos, model weights, caches, generated output, or the vendored repository.
 
 - For continuation in a new chat, read local docs/HANDOFF.md before changing the project when it is available. It is not distributed with the public source; otherwise read README.md and docs/development.md. Its backlog is context, not blanket authorization to implement every item.
+
+# Lecture authoring
+
+- Before writing or revising lecture prose, read profiles/computer-science/note-spec.md, including its plain-language workflow and teaching-quality review. Pass these instructions explicitly to any authoring subagent; it must read them before drafting.
+- Author lecture prose directly in Codex unless the user explicitly requests a local text model. Existing local OCR/VLM/transcription evidence may be reused; do not relabel a local model's old prose as directly authored content.
+- For a course series, read the latest preceding lecture notes and unresolved checks before finalizing the next lecture. Preserve the lecturer's progression, not merely the slide order.
+- Explain mechanisms, workflows, structural levels and worked examples in straightforward Traditional Chinese. Keep source discrepancies explicit, with detailed auditing in the review list rather than dominating the main lesson.
+- Complete a teaching-quality review as well as source-ID/time/hash validation. Mechanical coverage is not evidence that the explanation is complete or correct. Publish direct-authored chapters with editorial_publish.py; never resume the old local authoring worker over them.

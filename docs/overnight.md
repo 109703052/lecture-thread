@@ -1,5 +1,13 @@
 # 睡前處理一堂課
 
+本頁的背景生成流程使用本機文字模型。若講義已改由 Codex 直接撰寫，請使用下方「Codex 直接撰寫與發布」，不要以舊的 `resume` 覆寫新版。
+
+## 新課程預設作業流程
+
+依 [資工筆記規格](../profiles/computer-science/note-spec.md) 的「新課程影片到發布的標準流程」執行：建立來源及前課脈絡 → 原始轉錄與投影片時間軸 → 對照原圖校訂逐字稿、針對疑點回聽 → AI 修順獨立閱讀稿 → 撰寫講義與清理待核對清單 → 忠實性、教學品質及資料驗收 → 依授權發布。
+
+閱讀稿可去口頭禪與無意義重複，但必須保留老師原話的校訂版本、來源時間與實質內容。後續人工／線上修訂須連動檢查閱讀稿、講義與清單；閱讀區不插入模型建議或核對小字。本頁舊背景管線不等於已自動完成這些編輯與驗收工作；「閱讀稿／查看原話」切換及版本失效處理須以實際程式驗收為準。
+
 在專案根目錄的 PowerShell 使用 `lecture.cmd`。這是本機背景程序，不需保持 Codex 對話持續執行。電腦需保持開機且不進入睡眠；不會修改 Windows 電源、驅動、全域 PATH、執行原則或註冊服務。
 
 完整處理環境已就緒後，第一次先執行 `.\lecture.cmd prepare`，將預設視覺與文字模型下載至專案 `models/`（已有的模型會重用）。文字模型 [`qwen2.5:7b`](https://ollama.com/library/qwen2.5:7b) 約 4.7 GB；這一步需要網路，結束會停止專案 Ollama。
@@ -80,6 +88,20 @@ Windows 偶爾會因進度讀取或掃描暫時鎖住檔案；VLM 的中途 chec
 清單涵蓋模型提出的疑點、沒有獨立講稿的轉場與沒有 OCR 文字的畫面，**不是完整錯誤偵測器**。來源 ID 覆蓋只能證明原句被分配到講義，無法證明模型解釋正確或沒有省略細節。仍需抽查數字、公式、術語與程式碼；短於抽樣間隔的畫面不保證擷取。
 
 Related: [課程格式](courses.md)、[講義規格](../profiles/computer-science/note-spec.md)、[ADR 0002](architecture/adr/0002-resumable-local-lecture-pipeline.md)。
+
+## Codex 直接撰寫與發布
+
+逐字稿、OCR、視覺分析與畫面時間仍可沿用；講義正文由 Codex 讀取這些來源後直接編寫，保存為課程目錄的 `editorial_chapters.json`。同系列課程先閱讀前課講義及待核對事項，再接續下一堂。這個檔案必須包含全課總覽、連續章節、段落文字、來源 ID 及明示的疑點，不能用重新命名本機模型舊稿代替撰寫。
+
+```powershell
+# 這兩個命令只做資料驗證與發布，不會啟動任何模型
+.\.venv\Scripts\python.exe editorial_publish.py --course output/jobs/任務ID/course.local.json
+.\.venv\Scripts\python.exe editorial_publish.py --course output/jobs/任務ID/course.local.json --check
+```
+
+發布前驗證原始逐字稿 hash、全部片段依序恰好歸屬一次、章節時間連續及所有來源圖片存在。舊閱讀頁、講義與清單會先備份；原稿、人工修訂和既有視覺證據不覆寫。閱讀頁優先顯示分章講義，另保留每次投影片出現（含回頁與註記）的來源對照。`authoring_provenance.json` 記錄作者、證據摘要、備份及校正版沿用範圍。
+
+已有 `editorial_chapters.json` 的課程，舊 Worker 的前置檢查與作者階段會拒絕再次呼叫本機文字模型。修改正文後應重新執行發布命令。來源覆蓋通過不等同內容完全正確；未聽音確認的疑點仍須保留。
 
 ## 本機驗證範圍（2026-10-21）
 
