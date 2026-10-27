@@ -291,8 +291,8 @@ function replaceContentKeepingAudio(pane,html){
 function showPlaybackSegment(index){
  const s=DATA.segments[index];state.segment=index;state.paragraph=-1;speakingSource=-1;
  renderNav($('#search').value);
- $('#reading-head h1').textContent=s.title;
- $('#reading-head .meta').firstChild.textContent=`${stamp(s.start)}–${stamp(s.end)} · ${s.sections.length} 個閱讀段落 `;
+ const heading=$('#reading-head h1');heading.textContent=heading.title=s.title;
+ $('#reading-head .meta-time').textContent=`${stamp(s.start)}–${stamp(s.end)} · ${s.sections.length} 個閱讀段落`;
  replaceContentKeepingAudio($('#notes-scroll'),renderNotes(s,index));
  replaceContentKeepingAudio($('#transcript'),renderTranscript(s));
  $('#notes-scroll').scrollTop=0;$('#sources').scrollTop=0;
@@ -320,8 +320,8 @@ function showSegment(index){
  state.segment=index;state.paragraph=-1;
  const s=DATA.segments[index];
  renderNav($('#search').value);
- $('#reading').innerHTML=`<div id="reading-head"><h1>${esc(s.title)}</h1><div class="meta">${stamp(s.start)}–${stamp(s.end)} · ${s.sections.length} 個閱讀段落 <button id="toggle-slide" aria-expanded="true">隱藏投影片</button><button id="restore-ratio">適應區域</button><button id="enlarge-slide">放大投影片</button></div>
- <div id="inline-player" hidden><div class="playback-summary"><span id="playback-label"></span><button id="stop-playback">停止聲音</button></div><audio id="lesson-audio" controls preload="none" aria-label="所選文字的聲音播放器"></audio><p id="audio-message" role="status"></p></div>
+ $('#reading-head').innerHTML=`<h1 title="${esc(s.title)}">${esc(s.title)}</h1><div class="meta"><small class="meta-time">${stamp(s.start)}–${stamp(s.end)} · ${s.sections.length} 個閱讀段落</small><div class="slide-tools"><button id="toggle-slide" aria-expanded="true">隱藏投影片</button><button id="restore-ratio">適應區域</button><button id="enlarge-slide">放大投影片</button></div></div>`;
+ $('#reading').innerHTML=`<div id="reading-status"><div id="inline-player" hidden><div class="playback-summary"><span id="playback-label"></span><button id="stop-playback">停止聲音</button></div><audio id="lesson-audio" controls preload="none" aria-label="所選文字的聲音播放器"></audio><p id="audio-message" role="status"></p></div>
  <p id="video-message" role="status"></p></div>
  <div class="figure" id="media-area" ${s.image?'':'hidden'}>
  <span id="slide-caption" class="visually-hidden">投影片 · 隨閱讀段落切換</span>
@@ -487,7 +487,7 @@ document.addEventListener('pointerdown',e=>{
  const divider=e.target.closest('#media-divider');
  if(divider&&e.button===0){
   e.preventDefault();const vertical=window.innerWidth>800,start=vertical?e.clientX:e.clientY,initial=splitFraction;
-  const available=Math.max(1,vertical?$('#reading').clientWidth-14:$('#reading').clientHeight-$('#reading-head').offsetHeight-14);
+  const available=Math.max(1,vertical?$('#reading').clientWidth-14:$('#reading').clientHeight-$('#reading-status').offsetHeight-14);
   divider.setPointerCapture(e.pointerId);
   const move=ev=>setSplit(initial+((vertical?ev.clientX:ev.clientY)-start)/available,true);
   const end=()=>{divider.removeEventListener('pointermove',move);divider.removeEventListener('pointerup',end);divider.removeEventListener('pointercancel',end);divider.removeEventListener('lostpointercapture',end)};

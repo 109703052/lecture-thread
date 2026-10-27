@@ -249,3 +249,25 @@ body>header .toolbar{min-width:0;flex:1;justify-content:flex-end;gap:12px}
 
 .edit-connection{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%}
 .transcript-header .edit-connection .edit-storage-note{margin:0;font-size:12px;color:var(--green);max-width:40ch;overflow-wrap:anywhere}
+
+/* One top bar: course, current chapter and slide controls share the header row. */
+body>header{flex-wrap:nowrap}
+body>header>strong{flex-shrink:0}
+body>header .course-title{flex:0 1 auto;min-width:0;max-width:22vw}
+body>header .toolbar{flex:0 0 auto}
+#reading-head{display:flex;align-items:center;gap:12px;flex:1 1 auto;min-width:0;padding:0 0 0 16px;border:0;border-left:1px solid var(--line)}
+#reading-head h1{flex:0 1 auto;min-width:0;font-size:15px;line-height:1.5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#reading-head .meta{flex:1 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
+#reading-head .meta-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+#reading-head .slide-tools{display:flex;gap:6px}
+#reading-status{grid-column:1/-1;grid-row:1;padding:0 20px}
+#reading-status>:not([hidden]):not(:empty){margin:8px 0}
+@media(max-width:1100px){#reading-head .meta-time{display:none}}
+@media(max-width:800px){
+ body>header #reading-head{grid-column:1/-1;grid-row:2;flex-wrap:wrap;gap:4px 8px;padding:4px 0 0;border-left:0;border-top:1px solid var(--line)}
+ body>header .reader-controls{grid-row:3}
+ #reading-head h1{flex-basis:100%;white-space:normal}
+ #reading-head .meta{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start;gap:4px 8px}
+ #reading-head .meta-time{display:inline}
+ #reading-status{padding:0 12px}
+}
