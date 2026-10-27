@@ -131,7 +131,7 @@ def build(course=None, *, publish_dir=None, audio_url=None):
         html=html.replace('<h2>逐字稿</h2>', '<h2>閱讀稿</h2>').replace('aria-label="校正逐字稿"','aria-label="閱讀稿與校訂原話"')
         if publish_dir is None:
             html=html.replace('閱讀版補上標點、整理口語銜接，保留每句原始時間與待核對標記。未提供閱讀版的課程依時間分組。展開「逐句校訂」可查看原句、聽單句或修改文字；人工修訂優先顯示。',
-                              '預設閱讀稿整理口語與重複，每段保留來源時間。「查看校訂原話」可聽單句及校字；儲存只修改原話，閱讀稿另存。原話變動後，該段暫時顯示最新原話，待閱讀稿重新核對。')
+                              '預設閱讀稿整理口語與重複，每段保留來源時間。滑鼠移到句子上（觸控為點一下）可看對應的校訂原話；「查看校訂原話」可聽單句及校字；儲存只修改原話，閱讀稿另存。原話變動後，該段暫時顯示最新原話，待閱讀稿重新核對。')
     html=html.replace('COURSE_TITLE',html_module.escape(display_title)).replace('COURSE_DESCRIPTION',html_module.escape(course.description,quote=True))
     html=html.replace('/*READER_CSS*/',(ROOT/'reader.css').read_text(encoding='utf-8'),1).replace('/*READER_JS*/',(ROOT/'reader.js').read_text(encoding='utf-8'),1).replace('__COURSE_PAYLOAD__',payload,1)
     output.write_text(html,encoding='utf-8')
