@@ -21,3 +21,16 @@ test('content refresh keeps every ancestor of the playing audio connected',()=>{
  assert.equal(player.parentElement,slot);assert.equal(slot.parentElement,row);assert.equal(row.parentElement,pane);assert.equal(oldText.parentElement,null);assert.equal(otherRow.parentElement,null);assert.equal(row.attrs['data-source'],undefined);assert.equal(pane.html,'new chapter');
  context.replaceContentKeepingAudio(pane,'another chapter');assert.equal(player.parentElement,slot);assert.equal(slot.parentElement,row);assert.equal(pane.html,'another chapter');
 });
+test('paging during video playback seeks the running player instead of rebuilding the reader',()=>{
+ const calls=[],video={hidden:false};
+ const context=vm.createContext({savingEdits:new Set(),playbackRange:{audio:false,seekTo:(t,keepPaused)=>calls.push(['seek',t,keepPaused])},
+  DATA:{segments:[{start:0,end:30},{start:0,end:10},{start:10,end:20}]},
+  $:s=>s==='#video-view'?video:null,
+  showPlaybackSegment:i=>calls.push(['playback',i]),setParagraph:i=>calls.push(['paragraph',i]),showSegment:i=>calls.push(['rebuild',i])});
+ vm.runInContext(source.slice(source.indexOf('function pageSegment('),source.indexOf('function showSegment(')),context);
+ context.pageSegment(2);assert.deepEqual(calls,[['playback',2],['seek',10,true],['paragraph',0]]);
+ calls.length=0;context.pageSegment(0);assert.deepEqual(calls,[['rebuild',0]]);
+ calls.length=0;video.hidden=true;context.pageSegment(1);assert.deepEqual(calls,[['rebuild',1]]);
+ calls.length=0;video.hidden=false;context.playbackRange.audio=true;context.pageSegment(1);assert.deepEqual(calls,[['rebuild',1]]);
+ calls.length=0;context.playbackRange=null;context.pageSegment(1);assert.deepEqual(calls,[['rebuild',1]]);
+});

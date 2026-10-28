@@ -296,3 +296,32 @@ body>header .toolbar{flex:0 0 auto}
 #source-peek button{margin-top:10px;font-size:12px}
 #source-peek .peek-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:-12px;margin:-12px -14px 8px;padding:10px 14px;background:var(--paper);border-bottom:1px solid var(--line);z-index:1}
 #source-peek .peek-header button{margin:0;min-height:36px}
+
+/* Viewport navigation remains available across all reading panes. */
+#reading>.paging{position:fixed;inset:50% 8px auto;margin:0;transform:translateY(-50%);z-index:9;pointer-events:none}
+#reading>.paging button{position:relative;display:flex;align-items:center;gap:4px;min-height:44px;width:88px;justify-content:center;flex-shrink:0;padding:10px 8px;font-size:14px;pointer-events:auto;color:#fff}
+#reading>.paging #previous{background:#245b86;border-color:#245b86}
+#reading>.paging #previous:hover{background:#19476c;border-color:#19476c}
+#reading>.paging #next{background:#21664e;border-color:#21664e}
+#reading>.paging #next:hover{background:#174b39;border-color:#174b39}
+#reading>.paging button:disabled{background:#edf0ed!important;border-color:var(--line)!important;color:var(--muted);opacity:1}
+#reading>.paging #next{flex-direction:row-reverse}
+#reading>.paging svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#reading>.paging button::after{box-sizing:border-box;content:attr(data-chapter);display:none;position:absolute;top:calc(100% + 8px);left:0;width:88px;padding:8px;background:var(--paper);border:1px solid var(--line);border-radius:6px;color:var(--ink);text-align:left;line-height:1.6;white-space:normal;overflow-wrap:anywhere;overflow:hidden;-webkit-line-clamp:5;-webkit-box-orient:vertical;pointer-events:none}
+#reading>.paging #next::after{left:auto;right:0}
+#reading>.paging button:not(:disabled):is(:hover,:focus-visible)::after{display:-webkit-box}
+#chapter-tab{top:16px}
+/* Reclaim oversized prose margins; only the outer blank edges host navigation. */
+@media(min-width:1101px){
+ #notes-scroll{padding-inline:24px 104px}
+ #reading.media-collapsed #notes-scroll{padding-inline:104px}
+ #notes-scroll .lesson,#notes-scroll .caution{max-width:108ch}
+ #transcript{width:calc(100% - 208px);max-width:1440px;padding-inline:16px}
+ #sources .transcript-header{padding-inline:104px}
+}
+@media(max-width:1100px){
+ #reading>.paging{inset:auto 8px calc(env(safe-area-inset-bottom,0px) + 12px);transform:none}
+ #reading>.paging button{padding:8px;font-size:13px}
+ #reading>.paging button::after{top:auto;bottom:calc(100% + 8px);width:min(240px,calc(100vw - 32px));-webkit-line-clamp:2}
+ #notes-scroll,#transcript{padding-bottom:76px}
+}

@@ -36,6 +36,7 @@ function persistLayoutPreferences(){
 }
 
 let manualEdits=DATA.manual_edits?.edits||{}, editDrafts={}, draftBases={}, speakingSource=-1;
+let speakingReadingSentence=null,lastAutoFollowTarget=null;
 let storeRevision=DATA.manual_edits?.revision||null, storeToken=null, storeReady=false, draftsDurable=true;
 const savingEdits=new Set();
 function persistDrafts(){
@@ -167,6 +168,30 @@ function exportManualEdits(){
  const link=document.createElement('a');link.href=url;link.download=DATA.youtube_id+'.transcript.manual-edits.json';link.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function updateFollowControl(){
+ const button=$('#follow');if(!button)return;
+ button.setAttribute('aria-pressed',String(state.follow));
+ button.textContent=state.follow?'自動跟隨：開':speakingSource>=0||speakingReadingSentence?'回到播放位置':'恢復自動跟隨';
+ button.title=state.follow?'手動捲動閱讀稿會暫停自動跟隨':'保留目前閱讀位置；按此恢復自動跟隨';
+}
+function pauseTranscriptFollow(){
+ if(!state.follow)return;
+ state.follow=false;
+ // Cancel an in-flight smooth scroll before letting the user's scroll take over.
+ const pane=$('#sources');pane.scrollTo({top:pane.scrollTop,behavior:'instant'});
+ updateFollowControl();
+}
+function scrollPlaybackSentence(force=false){
+ const source=speakingSource>=0?$(`.utterance[data-source="${speakingSource}"]`):null;
+ const group=speakingReadingSentence?.closest?.('.has-reading-paragraph')||source?.closest?.('.has-reading-paragraph');
+ const target=group&&!group.classList.contains('show-details')?speakingReadingSentence||group.querySelector('.reading-sentence.is-speaking')||group.querySelector('.reading-paragraph'):source;
+ const pane=$('#sources');if(!target||!pane.clientHeight)return;
+ if(!force&&target===lastAutoFollowTarget)return;
+ lastAutoFollowTarget=target;
+ const r=target.getBoundingClientRect(),p=pane.getBoundingClientRect(),top=p.top+$('.transcript-header').offsetHeight+12,bottom=p.bottom-12;
+ // A partially visible long sentence must not repeatedly snap back to its beginning.
+ if(bottom>top&&(force||r.bottom<=top||r.top>=bottom))pane.scrollTo({top:Math.max(0,pane.scrollTop+r.top-top-Math.min(80,(bottom-top)*.2)),behavior:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
 function updateSpeaking(time){
  if(time!==null&&Number.isFinite(time)&&DATA.alignment?.startsWith('editorial-')){
   const at=playbackRange&&!playbackRange.free?Math.min(time,playbackRange.end-.001):time;
@@ -177,22 +202,28 @@ function updateSpeaking(time){
   const at=playbackRange.free?time:Math.min(time,playbackRange.end-.001);
   DATA.transcript.forEach((t,i)=>{if(t.start<=at&&t.end>at&&(playbackRange.free||(t.start<playbackRange.end&&t.end>playbackRange.start)))id=i;});
  }
- if(speakingSource===id)return;
+ const readingSentences=[...document.querySelectorAll('.reading-sentence')];
+ const at=time!==null&&playbackRange?(playbackRange.free?time:Math.min(time,playbackRange.end-.001)):null;
+ // The displayed reading sentence owns one continuous interval, including pauses between its originals.
+ const readingSentence=at===null?null:readingSentences.find(sentence=>{
+  const ids=sentence.dataset?.sentenceIds?.split(',').map(Number);if(!ids?.length)return false;
+  const sources=ids.map(i=>DATA.transcript[i]).filter(Boolean);
+  return sources.length&&at>=Math.min(...sources.map(t=>t.start))&&at<Math.max(...sources.map(t=>t.end));
+ })||null;
+ if(time===null)lastAutoFollowTarget=null;
+ if(speakingSource===id&&speakingReadingSentence===readingSentence)return;
  speakingSource=id;
+ speakingReadingSentence=readingSentence;
+ updateFollowControl();
  document.querySelectorAll('.utterance').forEach(row=>{
   const active=Number(row.dataset.source)===id;row.classList.toggle('is-speaking',active);
   row.querySelector('.speaking-label').hidden=!active;
   if(active)row.setAttribute('aria-current','true');else row.removeAttribute('aria-current');
  });
- document.querySelectorAll('.reading-sentence').forEach(s=>{if(s.dataset?.sentenceIds)s.classList.toggle('is-speaking',s.dataset.sentenceIds.split(',').map(Number).includes(id));});
+ readingSentences.forEach(s=>{if(s.dataset?.sentenceIds)s.classList.toggle('is-speaking',s===readingSentence);});
  const status=$('#speaking-status');if(status)status.textContent=id<0?'':`正在播放 ${stamp(DATA.transcript[id].start)} 的原句`;
- if(id>=0&&state.follow&&!$('#sources').contains(document.activeElement)&&!Object.keys(editDrafts).length){
-  const source=$(`.utterance[data-source="${id}"]`),group=source?.closest?.('.has-reading-paragraph');
-  const row=group&&!group.classList.contains('show-details')?group:source,pane=$('#sources');
-  if(row&&pane.clientHeight){
-   const r=row.getBoundingClientRect(),p=pane.getBoundingClientRect(),top=p.top+$('.transcript-header').offsetHeight;
-   if(r.top<top||r.bottom>p.bottom)pane.scrollTo({top:Math.max(0,pane.scrollTop+r.top-top-12),behavior:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-  }
+ if((id>=0||readingSentence)&&state.follow&&!document.activeElement?.closest?.('textarea,input,select,[contenteditable],.transcript-editor')&&!Object.keys(editDrafts).length){
+  scrollPlaybackSentence();
  }
 }
 function setSplit(fraction,remember=false){
@@ -247,7 +278,11 @@ function renderSourceNav(){
 }
 function renderNotes(s,index){return ` ${s.sections.map((p,i)=>`<section class="lesson" data-paragraph="${i}" tabindex="0" aria-label="${esc(p.heading)}"><div class="lesson-head"><h2>${esc(p.heading)}</h2><div class="lesson-actions"><button class="time" data-paragraph="${i}" aria-label="對照 ${stamp(p.time)} 的逐字稿">${stamp(p.time)}–${stamp(p.end)}</button><button data-play-section="${i}" ${p.source_ids.length?'':'disabled'} aria-label="聽此段：${esc(p.heading)}">聽此段</button></div></div><p>${esc(p.text)}</p><div data-audio-section="${i}" class="audio-slot"></div></section>`).join('')}
  ${s.caution?`<div class="caution"><h2>補充與待核對</h2><p>${inlineText(s.caution)}</p></div>`:''}
- <div class="paging"><button id="previous" ${adjacentSegment(index,-1)<0?'disabled':''}>上一節</button><button id="next" ${adjacentSegment(index,1)<0?'disabled':''}>下一節</button></div>`;}
+ `;}
+function renderPaging(index){return `<div class="paging" role="navigation" aria-label="切換章節">${[-1,1].map(direction=>{
+ const target=adjacentSegment(index,direction),label=direction<0?'上一節':'下一節',title=DATA.segments[target]?.title||'';
+ return `<button id="${direction<0?'previous':'next'}" data-chapter="${esc(title)}" aria-label="${label}${title?'：'+esc(title):''}" ${target<0?'disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${direction<0?'m15 6-6 6 6 6':'m9 6 6 6-6 6'}"/></svg><span>${label}</span></button>`;
+ }).join('')}</div>`;}
 // Group only adjacent source IDs within the same authored topic/slide occurrence.
 // Limits are reading heuristics, not a claim of semantic inference.
 function transcriptGroups(s){
@@ -309,6 +344,13 @@ function showPlaybackSegment(index){
  const heading=$('#reading-head h1');heading.textContent=heading.title=s.title;
  $('#reading-head .meta-time').textContent=`${stamp(s.start)}–${stamp(s.end)} · ${s.sections.length} 個閱讀段落`;
  replaceContentKeepingAudio($('#notes-scroll'),renderNotes(s,index));
+ $('#previous').disabled=adjacentSegment(index,-1)<0;
+ $('#next').disabled=adjacentSegment(index,1)<0;
+ for(const [selector,direction,label] of [['#previous',-1,'上一節'],['#next',1,'下一節']]){
+  const title=DATA.segments[adjacentSegment(index,direction)]?.title||'';
+  $(selector).setAttribute('data-chapter',title);
+  $(selector).setAttribute('aria-label',label+(title?'：'+title:''));
+ }
  replaceContentKeepingAudio($('#transcript'),renderTranscript(s));
  $('#notes-scroll').scrollTop=0;$('#sources').scrollTop=0;
  updateMediaVisibility();
@@ -329,6 +371,16 @@ function syncPlaybackPosition(time){
   if(el&&pane.clientHeight){const inset=pane.querySelector(':scope > .continuous-player')?.offsetHeight||0;pane.scrollTop+=el.getBoundingClientRect().top-pane.getBoundingClientRect().top-inset-16;}
  }
 }
+// While a video is showing, paging seeks the running player instead of
+// rebuilding the reader, so its speed, pause and other player state carry over.
+function pageSegment(index){
+ const target=DATA.segments[index],video=$('#video-view');
+ // Index 0 is the whole-course overview, which playback never follows.
+ if(index>0&&target&&playbackRange?.seekTo&&!playbackRange.audio&&video&&!video.hidden&&!savingEdits.size){
+  showPlaybackSegment(index);playbackRange.seekTo(target.start,true);setParagraph(0);return;
+ }
+ showSegment(index);
+}
 function showSegment(index){
  if(savingEdits.size){$('#edit-storage-status').textContent='正在儲存，請稍候再切換章節。';return;}
  stopVideo();
@@ -348,7 +400,7 @@ function showSegment(index){
  </div></div>
  <div id="media-divider" role="separator" tabindex="0" aria-label="調整投影片與總整理的區域比例" aria-orientation="vertical" aria-valuemin="20" aria-valuemax="70" aria-valuenow="45" title="拖曳調整區域比例；方向鍵微調，Home 恢復"><span></span></div>
  <div id="notes-scroll">
- ${renderNotes(s,index)}</div>`;
+ ${renderNotes(s,index)}</div>${renderPaging(index)}`;
  updateMediaVisibility();
  $('#notes-scroll').addEventListener('scroll',()=>{if(!state.frame)state.frame=requestAnimationFrame(trackReading)},{passive:true});
 
@@ -367,7 +419,8 @@ function setParagraph(i){
  $('#status').textContent=ids.size?`${stamp(s.sections[i].time)}–${stamp(s.sections[i].end)} · 對應 ${ids.size} 句`:'此段沒有獨立講解語句';
  if(state.follow)scrollTranscript();
 }
-function scrollTranscript(){
+function scrollTranscript(force=false){
+ if($('.utterance.is-speaking')||$('.reading-sentence.is-speaking')){scrollPlaybackSentence(force);return;}
  const active=$('.utterance.is-speaking')||$('.utterance.is-linked');if(!active)return;
  const first=active.closest?.('.transcript-group')||active;
  const pane=$('#sources'),head=$('.transcript-header');
@@ -449,12 +502,13 @@ function playRange(start,end,label,audioSlot=null){
   if(audio)$('#playback-label').textContent='自由播放 · 可拖曳到任意時間';
   else message.textContent='自由播放 · 可拖曳到任意時間';
  };
- playbackRange.seekTo=time=>{
+ playbackRange.seekTo=(time,keepPaused=false)=>{
   if(!isCurrent())return;
   start=time;freePlayback();updateSpeaking(null);
   $('#video-youtube').href=youtubeAt(time);
   if(v.readyState>=1){
    pendingSeek=time;v.currentTime=time;
+   if(keepPaused&&v.paused)return;
    v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
   }
  };
@@ -663,9 +717,9 @@ document.addEventListener('click',e=>{
   if(i!==undefined){document.body.dataset.pane='notes';setParagraph(i);$(`.lesson[data-paragraph="${i}"]`).scrollIntoView({block:'start',behavior:'auto'})}
   return;
  }
- if(e.target.id==='previous')showSegment(adjacentSegment(state.segment,-1));
- if(e.target.id==='next')showSegment(adjacentSegment(state.segment,1));
- if(e.target.id==='follow'){state.follow=!state.follow;e.target.setAttribute('aria-pressed',String(state.follow));e.target.textContent=state.follow?'跟隨閱讀：開':'跟隨閱讀：關';if(state.follow)scrollTranscript()}
+ const pagingButton=e.target.closest('.paging button');
+ if(pagingButton&&!pagingButton.disabled)pageSegment(adjacentSegment(state.segment,pagingButton.id==='previous'?-1:1));
+ if(e.target.id==='follow'){state.follow=!state.follow;updateFollowControl();if(state.follow)scrollTranscript(true)}
 });
 document.addEventListener('keydown',e=>{
  if(e.target.closest?.('.reading-inline-active,.reading-inline-actions'))return;
@@ -678,6 +732,15 @@ document.addEventListener('keydown',e=>{
  if((e.key==='Enter'||e.key===' ')&&e.target.matches('.lesson')){e.preventDefault();e.target.click()}
 });
 document.addEventListener('focusin',e=>{if(e.target.matches('.lesson'))setParagraph(Number(e.target.dataset.paragraph))});
+// Intent events distinguish user scrolling from our own scrollTo calls.
+$('#sources').addEventListener('wheel',pauseTranscriptFollow,{passive:true});
+$('#sources').addEventListener('touchmove',pauseTranscriptFollow,{passive:true});
+$('#sources').addEventListener('pointerdown',e=>{if(e.target===$('#sources'))pauseTranscriptFollow();},{passive:true});
+$('#sources').addEventListener('keydown',e=>{
+ if(e.target.closest?.('input,textarea,select,[contenteditable]'))return;
+ if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)||e.key===' '&&!e.target.closest?.('button,a,[role="button"]'))pauseTranscriptFollow();
+});
+updateFollowControl();
 function refreshReadingLayout(){
  if(!$('#main').clientWidth||!$('#main').clientHeight)return;
  setSplit(splitFraction);trackReading();
@@ -729,11 +792,12 @@ async function playYouTubeRange(start,end,label){
  $('#video-youtube').href=youtubeAt(start);
  const message=$('#video-message');message.textContent='正在載入 YouTube…';
  let ready=false,finished=false;
- playbackRange.seekTo=time=>{
+ playbackRange.seekTo=(time,keepPaused=false)=>{
   if(request!==playbackRequest)return;
   start=time;playbackRange.free=true;finished=false;updateSpeaking(null);
   $('#video-youtube').href=youtubeAt(time);
-  if(ready){youtubePlayer.seekTo(time,true);youtubePlayer.playVideo();}
+  // States 1 and 3 are PLAYING and BUFFERING.
+  if(ready){youtubePlayer.seekTo(time,true);if(!keepPaused||[1,3].includes(youtubePlayer.getPlayerState()))youtubePlayer.playVideo();}
  };
  const mount=document.createElement('div');mount.id='youtube-player';$('#video-view').append(mount);
  updateMediaVisibility();

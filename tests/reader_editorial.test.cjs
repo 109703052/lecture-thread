@@ -21,7 +21,8 @@ test('editorial reading uses each actual occurrence, including annotation change
 test('editorial playback updates slides even when the speaking source has not changed',()=>{
  const slides=[];
  const context=vm.createContext({DATA:{alignment:'editorial-source-ids-with-occurrence-appendix',transcript:[]},
-  playbackRange:{free:true},speakingSource:-1,syncReadingSlide:s=>slides.push(s.time)});
+  playbackRange:{free:true},speakingSource:-1,speakingReadingSentence:null,lastAutoFollowTarget:null,
+  document:{querySelectorAll:()=>[]},syncReadingSlide:s=>slides.push(s.time)});
  vm.runInContext(source.slice(source.indexOf('function updateSpeaking('),source.indexOf('function setSplit(')),context);
  context.updateSpeaking(5);context.updateSpeaking(6);context.updateSpeaking(null);
  assert.deepEqual(slides,[5,6]);

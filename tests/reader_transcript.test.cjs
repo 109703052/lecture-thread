@@ -121,6 +121,42 @@ test('following scrolls only sources and respects an editor or disabled follow',
  assert.equal(t.rows[2]['is-speaking'],true);
 });
 
+test('playback follows the visible sentence rather than snapping a tall reading group to its start',()=>{
+ const t=transcript();t.range(0,6);
+ let rect={top:170,bottom:240};
+ let sentence={getBoundingClientRect:()=>rect};
+ const group={classList:{contains:()=>false},querySelector:()=>sentence,getBoundingClientRect:()=>({top:-600,bottom:1600})};
+ t.rows.forEach(row=>row.closest=()=>group);
+ t.context.updateSpeaking(.5);assert.equal(t.scrolls(),0,'visible sentence in oversized group stays still');
+ rect={top:20,bottom:250};t.context.updateSpeaking(2.5);assert.equal(t.scrolls(),0,'partially visible long sentence stays still');
+ sentence={getBoundingClientRect:()=>({top:450,bottom:520})};t.context.updateSpeaking(5.2);assert.equal(t.scrolls(),1,'next fully offscreen sentence is followed');
+});
+
+test('one reading sentence spans original boundaries and pauses without repeated scrolls',()=>{
+ const t=transcript();t.range(0,6);t.DATA.transcript[1].start=2.5;
+ const sentence={dataset:{sentenceIds:'0,1'},getBoundingClientRect:()=>({top:450,bottom:550}),classList:{toggle(name,value){sentence[name]=value;}}};
+ const group={classList:{contains:()=>false},querySelector:()=>sentence};
+ sentence.closest=()=>group;t.rows.forEach(row=>row.closest=()=>group);
+ t.context.document.querySelectorAll=selector=>selector==='.reading-sentence'?[sentence]:t.rows;
+ t.context.updateSpeaking(.5);assert.equal(t.scrolls(),1);assert.equal(sentence['is-speaking'],true);
+ t.context.updateSpeaking(2.2);assert.equal(sentence['is-speaking'],true,'reading interval includes gaps between originals');assert.equal(t.rows.some(row=>row['is-speaking']),false);
+ t.context.updateSpeaking(2.6);assert.equal(t.rows[1]['is-speaking'],true);assert.equal(t.scrolls(),1,'new original inside same reading sentence does not scroll');
+ t.context.updateSpeaking(4.5);assert.equal(sentence['is-speaking'],false,'reading highlight ends at its own end');
+});
+
+test('manual scrolling pauses follow without losing playback highlight and explicit resume targets the sentence',()=>{
+ const t=transcript();t.range(0,6);
+ t.context.pauseTranscriptFollow();const count=t.scrolls();
+ assert.equal(t.context.state.follow,false);
+ t.context.updateSpeaking(2.5);
+ assert.equal(t.rows[1]['is-speaking'],true);
+ assert.equal(t.scrolls(),count,'playback cannot override manual reading position');
+ assert.equal(t.element('#follow').textContent,'回到播放位置');
+ t.context.state.follow=true;t.context.updateFollowControl();t.context.scrollPlaybackSentence(true);
+ assert.equal(t.scrolls(),count+1);
+ assert.equal(t.element('#follow')['aria-pressed'],'true');
+});
+
 test('free playback highlights the actual sentence outside the initial range',()=>{
  const t=transcript();t.range(0,2,true);t.context.updateSpeaking(5.2);
  assert.equal(t.rows[2]['is-speaking'],true);assert.equal(t.rows[0]['is-speaking'],false);

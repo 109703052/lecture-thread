@@ -35,3 +35,9 @@ test('YouTube sentence seeking reuses the player, including a pending initial lo
  vm.runInContext('playbackRange.seekTo(70)',h.c);assert.equal(h.player.time,70);assert.equal(h.player.status,1);
  h.tick(80);assert.equal(h.player.status,1);assert.equal(h.player.destroyed,undefined);
 });
+test('YouTube paging keeps a paused player paused but resumes a playing one',async()=>{
+ const h=harness();let plays=0;h.player.seekTo=function(t){this.time=t;};h.player.playVideo=function(){plays++;this.status=1;};
+ await h.c.playYouTubeRange(10,12,'此句');h.options.events.onReady({target:h.player});
+ h.player.status=2;vm.runInContext('playbackRange.seekTo(70,true)',h.c);assert.equal(h.player.time,70);assert.equal(plays,0);
+ h.player.status=1;vm.runInContext('playbackRange.seekTo(90,true)',h.c);assert.equal(h.player.time,90);assert.equal(plays,1);
+});
