@@ -247,6 +247,13 @@ test('standalone audio uses the published audio URL and preserves timed stopping
  audio.currentTime=14.4;audio.ontimeupdate();assert.equal(audio.paused,true);
 });
 
+test('range-enabled published audio starts directly without a full download',()=>{
+ const {context,audio}=reader();context.DATA.read_only=true;context.DATA.audio_src='audio.m4a';context.DATA.audio_stream_src='/api/audio?course=1008';
+ context.fetch=()=>{throw Error('Must not download the whole file');};
+ context.playSource(1);assert.equal(audio.src,context.DATA.audio_stream_src);
+ audio.onloadedmetadata();assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);
+});
+
 test('published audio caches a seekable blob and only the latest pending click starts',async()=>{
  const {context,audio}=reader();let downloads=0,finish;
  context.DATA.read_only=true;context.DATA.audio_src='audio.m4a';
