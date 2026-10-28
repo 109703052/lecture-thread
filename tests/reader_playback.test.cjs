@@ -246,3 +246,28 @@ test('standalone audio uses the published audio URL and preserves timed stopping
  audio.onloadedmetadata();assert.equal(audio.currentTime,12);
  audio.currentTime=14.4;audio.ontimeupdate();assert.equal(audio.paused,true);
 });
+
+test('published audio caches a seekable blob and only the latest pending click starts',async()=>{
+ const {context,audio}=reader();let downloads=0,finish;
+ context.DATA.read_only=true;context.DATA.audio_src='audio.m4a';
+ context.fetch=()=>{downloads++;return new Promise(resolve=>{finish=resolve;});};
+ context.URL={createObjectURL:()=> 'blob:seekable-audio'};
+ context.playSource(0);context.playSource(1);
+ assert.equal(downloads,1);assert.equal(audio.getAttribute('src'),null);
+ finish({ok:true,blob:async()=>({})});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(audio.src,'blob:seekable-audio');
+ audio.onloadedmetadata();assert.equal(audio.currentTime,42);
+ context.playSource(0);await new Promise(resolve=>setImmediate(resolve));
+ audio.onloadedmetadata();assert.equal(audio.currentTime,12);assert.equal(downloads,1);
+});
+
+test('stopping while published audio downloads prevents delayed playback',async()=>{
+ const {context,audio}=reader();let finish;
+ context.DATA.read_only=true;context.DATA.audio_src='audio.m4a';
+ context.fetch=()=>new Promise(resolve=>{finish=resolve;});
+ context.URL={createObjectURL:()=> 'blob:seekable-audio'};
+ context.playSource(1);context.stopVideo();
+ finish({ok:true,blob:async()=>({})});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(audio.getAttribute('src'),null);assert.equal(audio.paused,true);
+});

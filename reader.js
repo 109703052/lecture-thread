@@ -3,6 +3,14 @@ const DATA=JSON.parse(document.getElementById('course-data').textContent);
 const $=s=>document.querySelector(s);
 const state={segment:0,paragraph:-1,follow:true,frame:0};
 let playbackRequest=0;
+const audioSourceCache=new Map();
+function seekableAudioSource(src){
+ if(!audioSourceCache.has(src))audioSourceCache.set(src,fetch(src).then(async response=>{
+  if(!response.ok)throw Error('Audio download failed');
+  return URL.createObjectURL(await response.blob());
+ }).catch(error=>{audioSourceCache.delete(src);throw error;}));
+ return audioSourceCache.get(src);
+}
 let playbackRange=null, playbackTimer=null;
 const PLAYBACK_TAIL=.3;
 let slidesHidden=false, splitFraction=.45;
@@ -473,7 +481,14 @@ function playRange(start,end,label,audioSlot=null){
   v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
  };
  v.onerror=()=>{if(isCurrent()){clearTimeout(playbackTimer);playbackTimer=null;updateSpeaking(null);message.textContent=(DATA.read_only?'媒體':'本機媒體')+'無法載入，可重按播放或使用該句的 YouTube 連結。';}};
- v.onloadedmetadata=seek;v.src=audio?(DATA.audio_src||DATA.video_src):DATA.video_src;v.load();
+ const source=audio?(DATA.audio_src||DATA.video_src):DATA.video_src;
+ const loadSource=src=>{if(!isCurrent())return;message.textContent='';v.onloadedmetadata=seek;v.src=src;v.load();};
+ // Hosted assets may ignore HTTP Range. A complete local Blob is seekable even
+ // in that case, and its promise is shared by subsequent clicks in this course.
+ if(audio&&DATA.read_only&&DATA.audio_src){
+  message.textContent='正在載入課程音訊，完成後會從所選段落播放…';
+  seekableAudioSource(source).then(loadSource).catch(()=>{if(isCurrent())message.textContent='音訊載入失敗，請重按聽這段重試。';});
+ }else loadSource(source);
  if(!audio||wasVideo)updateMediaVisibility();
  if(audio)positions.forEach(({pane,top})=>{pane.scrollTop=top;});
 }
