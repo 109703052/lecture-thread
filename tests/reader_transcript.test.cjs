@@ -155,7 +155,7 @@ test('reading sentences link to their originals and fall back to plain text afte
   sentences:[{text:'第一句。',source_ids:[0]},{text:'第二<句>。',source_ids:[0,1]}]}];
  await t.context.loadManualEdits();
  const html=t.context.readingParagraphHTML([0,1]);
- assert.match(html,/<span class="reading-sentence" data-sentence-ids="0" data-return="0">第一句。<\/span>/);
+ assert.match(html,/<span class="reading-sentence"[^>]*role="button"[^>]*tabindex="0"[^>]*data-sentence-ids="0" data-return="0">第一句。<\/span>/);
  assert.match(html,/data-sentence-ids="0,1" data-return="0">第二&#60;句&#62;。<\/span>/);
  await t.context.editTranscript(0,'open');t.draft(0,'新校字');await t.context.editTranscript(0,'save');
  assert.equal(t.context.readingParagraphHTML([0,1]),'新校字，原句二');

@@ -27,3 +27,11 @@ test('YouTube embed errors retain a usable original-video link',async()=>{
  const h=harness();await h.c.playYouTubeRange(10,12,'此句');h.options.events.onError();
  assert.match(h.$('#video-message').textContent,/無法嵌入/);assert.match(h.$('#video-youtube').href,/10/);
 });
+
+test('YouTube sentence seeking reuses the player, including a pending initial load',async()=>{
+ const h=harness();h.player.seekTo=function(t){this.time=t;};h.player.playVideo=function(){this.status=1;};
+ const pending=h.c.playYouTubeRange(10,12,'此句');vm.runInContext('playbackRange.seekTo(42)',h.c);await pending;
+ h.options.events.onReady({target:h.player});assert.equal(h.player.loaded.startSeconds,42);
+ vm.runInContext('playbackRange.seekTo(70)',h.c);assert.equal(h.player.time,70);assert.equal(h.player.status,1);
+ h.tick(80);assert.equal(h.player.status,1);assert.equal(h.player.destroyed,undefined);
+});

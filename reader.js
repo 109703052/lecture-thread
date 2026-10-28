@@ -113,7 +113,7 @@ function readingParagraphText(ids){
 function readingParagraphHTML(ids){
  const p=readingParagraph(ids),text=readingParagraphText(ids);
  if(!p?.sentences?.length||text!==p.text)return esc(text);
- return p.sentences.map(s=>`<span class="reading-sentence" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(s.text)}</span>`).join('');
+ return p.sentences.map(s=>`<span class="reading-sentence" role="button" tabindex="0" aria-label="播放中點擊可跳到 ${stamp(DATA.transcript[s.source_ids[0]].start)}；未播放時返回講義" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(s.text)}</span>`).join('');
 }
 function displayedTranscriptText(id,row){
  return row?.closest?.('.transcript-group')?.classList.contains('show-details')?transcriptText(id):readingText(id);
@@ -406,6 +406,11 @@ function stopVideo(){
  }
  const player=$('#inline-player');if(player)player.hidden=true;
 }
+function seekTranscript(id){
+ const t=DATA.transcript[id];
+ if(!t||!playbackRange?.seekTo)return false;
+ playbackRange.seekTo(t.start);return true;
+}
 function playSource(id,video=false){
  const t=DATA.transcript[id];if(!t)return;
  const slot=video?null:$(`[data-audio-source="${id}"]`);if(!video&&!slot)return;
@@ -444,6 +449,15 @@ function playRange(start,end,label,audioSlot=null){
   if(audio)$('#playback-label').textContent='自由播放 · 可拖曳到任意時間';
   else message.textContent='自由播放 · 可拖曳到任意時間';
  };
+ playbackRange.seekTo=time=>{
+  if(!isCurrent())return;
+  start=time;freePlayback();updateSpeaking(null);
+  $('#video-youtube').href=youtubeAt(time);
+  if(v.readyState>=1){
+   pendingSeek=time;v.currentTime=time;
+   v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
+  }
+ };
  const boundary=()=>{
   if(!isCurrent())return;
   clearTimeout(playbackTimer);playbackTimer=null;
@@ -476,7 +490,7 @@ function playRange(start,end,label,audioSlot=null){
  }};
  const seek=()=>{
   if(!isCurrent())return;
-  v.onloadedmetadata=null;const target=Math.min(start,stopAt());
+  v.onloadedmetadata=null;const target=Math.min(start,Number.isFinite(v.duration)?v.duration:start);
   pendingSeek=Math.abs(v.currentTime-target)>.001?target:null;v.currentTime=target;
   v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
  };
@@ -600,6 +614,8 @@ function hideSourcePeek(){
  const peek=$('#source-peek');if(peek)peek.hidden=true;
 }
 document.addEventListener('click',e=>{
+ const timedText=e.target.closest('.reading-sentence,.source-text,.reading-paragraph');
+ if(timedText&&seekTranscript(Number(timedText.dataset.return))){hideSourcePeek();return;}
  const sentence=e.target.closest('.reading-sentence');
  if(sentence&&lastPointer!=='mouse'){if(sentence===peekSentence)hideSourcePeek();else showSourcePeek(sentence,true);return;}
  if(!e.target.closest('.reading-sentence'))hideSourcePeek();
@@ -694,15 +710,23 @@ async function playYouTubeRange(start,end,label){
  $('#video-view').hidden=false;$('#video-tools').hidden=false;$('#lesson-video').hidden=true;
  $('#video-youtube').href=youtubeAt(start);
  const message=$('#video-message');message.textContent='正在載入 YouTube…';
+ let ready=false,finished=false;
+ playbackRange.seekTo=time=>{
+  if(request!==playbackRequest)return;
+  start=time;playbackRange.free=true;finished=false;updateSpeaking(null);
+  $('#video-youtube').href=youtubeAt(time);
+  if(ready){youtubePlayer.seekTo(time,true);youtubePlayer.playVideo();}
+ };
  const mount=document.createElement('div');mount.id='youtube-player';$('#video-view').append(mount);
  updateMediaVisibility();
  try{
   const YT=await loadYouTubeAPI();if(request!==playbackRequest)return;
-  let finished=false,lastTime=start,lastWall=performance.now();
+  let lastTime=start,lastWall=performance.now();
   youtubePlayer=new YT.Player(mount,{width:'100%',height:'100%',videoId:DATA.youtube_source_id,
    playerVars:{playsinline:1,origin:location.origin},events:{
     onReady:event=>{
      if(request!==playbackRequest)return;
+     ready=true;
      message.textContent='若未自動播放，請按 YouTube 播放鍵。';
      event.target.loadVideoById({videoId:DATA.youtube_source_id,startSeconds:start});
      youtubePoll=setInterval(()=>{

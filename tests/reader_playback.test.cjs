@@ -254,6 +254,22 @@ test('range-enabled published audio starts directly without a full download',()=
  audio.onloadedmetadata();assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);
 });
 
+for(const videoMode of [false,true])test(`sentence click seeks the existing ${videoMode?'video':'audio'} and releases the previous end`,()=>{
+ const {context,audio,video,timers,emit}=reader(),media=videoMode?video:audio;
+ context.playSource(0,videoMode);media.onloadedmetadata();media.readyState=4;
+ const originalSource=media.src;let loads=0;media.load=()=>{loads++;};
+ emit('click',{target:{closest:selector=>selector==='.reading-sentence,.source-text,.reading-paragraph'?{dataset:{return:'1'}}:null}});
+ assert.equal(media.currentTime,42);assert.equal(media.paused,false);assert.equal(loads,0);assert.equal(media.src,originalSource);
+ media.currentTime=46;media.ontimeupdate();assert.equal(media.paused,false);assert.equal(timers.size,0);
+ media.pause();assert.equal(context.seekTranscript(0),true);assert.equal(media.currentTime,12);assert.equal(media.paused,false);
+ context.stopVideo();assert.equal(context.seekTranscript(1),false);
+});
+
+test('sentence selection while media loads replaces the pending start without the old range clamp',()=>{
+ const {context,audio}=reader();context.playSource(0);context.seekTranscript(1);
+ audio.onloadedmetadata();assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);
+});
+
 test('published audio caches a seekable blob and only the latest pending click starts',async()=>{
  const {context,audio}=reader();let downloads=0,finish;
  context.DATA.read_only=true;context.DATA.audio_src='audio.m4a';
