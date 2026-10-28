@@ -112,8 +112,8 @@ function readingParagraphText(ids){
 // Authored sentence maps let each polished sentence point back to the originals it condenses.
 function readingParagraphHTML(ids){
  const p=readingParagraph(ids),text=readingParagraphText(ids);
- if(!p?.sentences?.length||text!==p.text)return esc(text);
- return p.sentences.map(s=>`<span class="reading-sentence" role="button" tabindex="0" aria-label="播放中點擊可跳到 ${stamp(DATA.transcript[s.source_ids[0]].start)}；未播放時返回講義" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(s.text)}</span>`).join('');
+ const sentences=p&&text===p.text?(p.sentences?.length?p.sentences:[{text,source_ids:ids}]):ids.map(id=>({text:transcriptText(id),source_ids:[id]}));
+ return sentences.map(s=>`<span class="reading-sentence" role="button" tabindex="0" aria-label="播放中點擊可跳到 ${stamp(DATA.transcript[s.source_ids[0]].start)}；未播放時返回講義" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(s.text)}</span>`).join('');
 }
 function displayedTranscriptText(id,row){
  return row?.closest?.('.transcript-group')?.classList.contains('show-details')?transcriptText(id):readingText(id);
@@ -280,7 +280,7 @@ function renderTranscript(s){
   const first=DATA.transcript[ids[0]],last=DATA.transcript[ids.at(-1)];
   const authored=!!readingParagraph(ids);
   return `<section class="transcript-group${authored?' has-reading-paragraph':''}" aria-label="逐字稿 ${stamp(first.start)} 至 ${stamp(last.end)}">
-   <div class="group-tools"><time>${stamp(first.start)}–${stamp(last.end)}</time><button data-play-group="${ids.join(',')}">聽這段</button><button data-video-group="${ids.join(',')}" ${DATA.media_kind==='audio'?'disabled':''}>觀看影片</button><button data-group-details aria-expanded="false">${authored?'查看校訂原話':'逐句校訂'}</button></div>
+   <div class="group-tools"><time>${stamp(first.start)}–${stamp(last.end)}</time><button data-play-group="${ids.join(',')}">聽這段</button><button data-video-group="${ids.join(',')}" ${DATA.media_kind==='audio'?'disabled':''}>觀看影片</button>${authored?'':'<button data-group-details aria-expanded="false">逐句校訂</button>'}</div>
    ${authored?`<p class="reading-paragraph group-text" data-reading-ids="${ids.join(',')}" data-return="${ids[0]}" role="button" tabindex="0" aria-label="返回對應講義">${readingParagraphHTML(ids)}</p>`:''}<div class="group-text original-utterances">${ids.map(id=>{
     const t=DATA.transcript[id],editing=Object.hasOwn(editDrafts,id);
   return `<div class="utterance" data-source="${id}"><div class="source-tools"><time>${stamp(t.start)}</time><button data-play="${id}" aria-label="聽 ${stamp(t.start)} 此句">聽此句</button><button data-video="${id}" ${DATA.media_kind==='audio'?'disabled title="此課程僅提供音訊"':''} aria-label="觀看 ${stamp(t.start)} 此句的影片">觀看影片</button>${DATA.read_only?'':`<button data-edit="open" data-edit-id="${id}" aria-label="編輯 ${stamp(t.start)} 的校訂原話">校訂原話</button>`}<a href="${youtubeAt(t.start)}" target="_blank" rel="noopener noreferrer" data-youtube ${DATA.youtube_source_id===''?'hidden':''}> YouTube </a></div><span class="speaking-label" hidden>正在播放</span><span role="button" tabindex="0" class="source-text" data-return="${id}" aria-label="返回 ${stamp(t.start)} 對應講義" ${editing?'hidden':''}>${esc(readingText(id))}</span><div class="transcript-editor" ${editing?'':'hidden'}><textarea data-source-edit="${id}" aria-label="修改 ${stamp(t.start)} 的校訂原話" rows="3">${esc(editing?editDrafts[id]:transcriptText(id))}</textarea><div class="edit-actions"><button data-edit="save" data-edit-id="${id}">${draftBases[id]?.conflict?'確認並儲存此草稿':'儲存'}</button><button data-edit="cancel" data-edit-id="${id}">取消</button><button data-edit="latest" data-edit-id="${id}">使用本地最新文字</button><span>Ctrl+Enter 儲存 · Esc 取消</span></div><p role="status">${draftBases[id]?.conflict?esc(conflictMessage(id)):''}</p></div><div data-audio-source="${id}" class="audio-slot"></div></div>`;
@@ -592,12 +592,13 @@ document.addEventListener('keydown',e=>{
  }
 });
 // Hovering (or tapping, on touch screens) a reading sentence shows its corrected originals.
-let peekSentence=null,lastPointer='mouse';
+let peekSentence=null,lastPointer='mouse',peekHideTimer=null;
 function showSourcePeek(sentence,touch){
+ clearTimeout(peekHideTimer);
  const ids=sentence.dataset.sentenceIds.split(',').map(Number);
  let peek=$('#source-peek');
- if(!peek){peek=document.createElement('div');peek.id='source-peek';peek.setAttribute('role','tooltip');document.body.append(peek);}
- peek.innerHTML=`<p class="peek-label">校訂原話</p>${ids.map(id=>`<p><time>${stamp(DATA.transcript[id].start)}</time>${esc(transcriptText(id))}</p>`).join('')}${touch?`<button data-return="${ids[0]}">回到講義</button>`:''}`;
+ if(!peek){peek=document.createElement('div');peek.id='source-peek';peek.setAttribute('role','dialog');peek.setAttribute('aria-label','校訂原話');document.body.append(peek);}
+ peek.innerHTML=`<p class="peek-label">校訂原話</p>${ids.map(id=>`<p><time>${stamp(DATA.transcript[id].start)}</time>${esc(transcriptText(id))}</p>`).join('')}<button data-edit-originals="${ids.join(',')}">編輯</button>${touch?`<button data-return="${ids[0]}">回到講義</button>`:''}`;
  peek.classList.toggle('is-touch',touch);peek.hidden=false;
  peekSentence?.classList.remove('is-peeked');peekSentence=sentence;sentence.classList.add('is-peeked');sentence.setAttribute('aria-describedby','source-peek');
  const rects=sentence.getClientRects(),first=rects[0],last=rects[rects.length-1],gap=8;
@@ -609,11 +610,20 @@ function showSourcePeek(sentence,touch){
  peek.style.top=(above?first.top-gap-height:last.bottom+gap)+'px';
 }
 function hideSourcePeek(){
+ clearTimeout(peekHideTimer);
  if(!peekSentence)return;
  peekSentence.classList.remove('is-peeked');peekSentence.removeAttribute('aria-describedby');peekSentence=null;
  const peek=$('#source-peek');if(peek)peek.hidden=true;
 }
 document.addEventListener('click',e=>{
+ const editOriginals=e.target.closest('[data-edit-originals]');
+ if(editOriginals){
+  const ids=editOriginals.dataset.editOriginals.split(',').map(Number);hideSourcePeek();
+  if(window.COLLAB_COURSE)document.dispatchEvent(new CustomEvent('lecturethread:edit-originals',{detail:{ids}}));
+  else if(!DATA.read_only){const row=$(`.utterance[data-source="${ids[0]}"]`);row?.closest('.transcript-group')?.classList.add('show-details');editTranscript(ids[0],'open');}
+  return;
+ }
+ if(e.target.closest('.cloud-editor'))return;
  const timedText=e.target.closest('.reading-sentence,.source-text,.reading-paragraph');
  if(timedText&&seekTranscript(Number(timedText.dataset.return))){hideSourcePeek();return;}
  const sentence=e.target.closest('.reading-sentence');
@@ -672,11 +682,14 @@ window.addEventListener('resize',()=>{if(!$('#sources').hidden)setTranscriptHeig
 document.addEventListener('pointerdown',e=>{lastPointer=e.pointerType||'mouse'},true);
 document.addEventListener('pointerover',e=>{
  if(e.pointerType!=='mouse')return;
+ clearTimeout(peekHideTimer);
+ if(e.target.closest?.('#source-peek'))return;
  const sentence=e.target.closest?.('.reading-sentence');
  if(sentence){if(sentence!==peekSentence)showSourcePeek(sentence,false);}
- else hideSourcePeek();
+ else peekHideTimer=setTimeout(hideSourcePeek,250);
 });
-document.addEventListener('scroll',hideSourcePeek,true);
+document.addEventListener('focusin',e=>{if(e.target.matches('.reading-sentence'))showSourcePeek(e.target,false);});
+document.addEventListener('scroll',e=>{if(!e.target.closest?.('#source-peek'))hideSourcePeek();},true);
 window.addEventListener('resize',hideSourcePeek);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideSourcePeek();});
 new ResizeObserver(refreshReadingLayout).observe($('#main'));

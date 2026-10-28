@@ -158,5 +158,7 @@ test('reading sentences link to their originals and fall back to plain text afte
  assert.match(html,/<span class="reading-sentence"[^>]*role="button"[^>]*tabindex="0"[^>]*data-sentence-ids="0" data-return="0">第一句。<\/span>/);
  assert.match(html,/data-sentence-ids="0,1" data-return="0">第二&#60;句&#62;。<\/span>/);
  await t.context.editTranscript(0,'open');t.draft(0,'新校字');await t.context.editTranscript(0,'save');
- assert.equal(t.context.readingParagraphHTML([0,1]),'新校字，原句二');
+ const revised=t.context.readingParagraphHTML([0,1]);
+ assert.match(revised,/data-sentence-ids="0" data-return="0">新校字<\/span>/);
+ assert.match(revised,/data-sentence-ids="1" data-return="1">原句二<\/span>/);
 });
