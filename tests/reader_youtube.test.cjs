@@ -41,3 +41,10 @@ test('YouTube paging keeps a paused player paused but resumes a playing one',asy
  h.player.status=2;vm.runInContext('playbackRange.seekTo(70,true)',h.c);assert.equal(h.player.time,70);assert.equal(plays,0);
  h.player.status=1;vm.runInContext('playbackRange.seekTo(90,true)',h.c);assert.equal(h.player.time,90);assert.equal(plays,1);
 });
+test('YouTube resume cues a paused video and restores its speed',async()=>{
+ const h=harness();let rate=1;h.player.cueVideoById=function(v){this.cued=v};h.player.setPlaybackRate=r=>{rate=r};
+ await h.c.playYouTubeRange(345,346,'影片',{rate:1.75,paused:true});h.options.events.onReady({target:h.player});
+ assert.equal(h.player.cued.startSeconds,345);assert.equal(h.player.loaded,undefined);
+ h.options.events.onStateChange({data:5,target:h.player});assert.equal(rate,1.75);
+ assert.equal(vm.runInContext('playbackRange.free',h.c),true);
+});

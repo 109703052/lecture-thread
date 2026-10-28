@@ -34,3 +34,16 @@ test('paging during video playback seeks the running player instead of rebuildin
  calls.length=0;video.hidden=false;context.playbackRange.audio=true;context.pageSegment(1);assert.deepEqual(calls,[['rebuild',1]]);
  calls.length=0;context.playbackRange=null;context.pageSegment(1);assert.deepEqual(calls,[['rebuild',1]]);
 });
+test('reload reopens the visible video at its saved time, speed and pause state',()=>{
+ const store=new Map(),calls=[],video={readyState:4,currentTime:345.6,playbackRate:1.75,paused:true},view={hidden:false};
+ const context=vm.createContext({DATA:{media_kind:'video'},VIDEO_KEY:'k',playbackRange:{audio:false,start:10},youtubePlayer:null,
+  sessionStorage:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},
+  $:s=>s==='#video-view'?view:s==='#lesson-video'?video:null,playRange:(...args)=>calls.push(args)});
+ vm.runInContext(source.slice(source.indexOf('function videoState('),source.indexOf('function hideVideo(')),context);
+ context.saveVideoState();context.restoreVideoState();
+ assert.equal(calls.length,1);const [start,end,,slot,resume]=calls[0];
+ assert.equal(start,345.6);assert.ok(end>start);assert.equal(slot,null);assert.deepEqual({...resume},{rate:1.75,paused:true});
+ view.hidden=true;context.saveVideoState();assert.equal(store.has('k'),false);
+ calls.length=0;context.restoreVideoState();assert.equal(calls.length,0);
+ store.set('k','{broken');context.restoreVideoState();assert.equal(calls.length,0);
+});

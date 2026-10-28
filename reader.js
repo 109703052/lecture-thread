@@ -18,6 +18,8 @@ let transcriptFraction=null, navPinned=false, transcriptOpen=!!DATA.reading_para
 const EDITS_KEY='lecturethread:transcript-edits:'+DATA.youtube_id+':'+DATA.transcript_revision;
 const DRAFTS_KEY=EDITS_KEY+':drafts';
 const LAYOUT_KEY='lecturethread:layout:v1:'+DATA.youtube_id;
+// Per tab, so a reload resumes the video but a later visit starts fresh.
+const VIDEO_KEY='lecturethread:video:v1:'+DATA.youtube_id;
 function restoreLayoutPreferences(){
  try{
   const saved=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null');
@@ -475,10 +477,11 @@ function playSection(index){
  const slot=$(`[data-audio-section="${index}"]`);if(!slot)return;
  playRange(section.time,section.end,'此段',slot);
 }
-function playRange(start,end,label,audioSlot=null){
+// resume={rate,paused} reopens a saved video position in free playback.
+function playRange(start,end,label,audioSlot=null,resume=null){
  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return;
  if(!audioSlot&&DATA.media_kind==='audio')return;
- if(!audioSlot&&DATA.video_provider==='youtube'){playYouTubeRange(start,end,label);return;}
+ if(!audioSlot&&DATA.video_provider==='youtube'){playYouTubeRange(start,end,label,resume);return;}
  // Listening stays beside the requested text and never navigates or selects notes.
  const positions=['#notes-scroll','#sources'].map(selector=>$(selector)).filter(pane=>pane.clientHeight>0).map(pane=>({pane,top:pane.scrollTop}));
  const wasVideo=!$('#video-view').hidden;
@@ -512,6 +515,7 @@ function playRange(start,end,label,audioSlot=null){
    v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
   }
  };
+ if(resume)freePlayback();
  const boundary=()=>{
   if(!isCurrent())return;
   clearTimeout(playbackTimer);playbackTimer=null;
@@ -546,6 +550,7 @@ function playRange(start,end,label,audioSlot=null){
   if(!isCurrent())return;
   v.onloadedmetadata=null;const target=Math.min(start,Number.isFinite(v.duration)?v.duration:start);
   pendingSeek=Math.abs(v.currentTime-target)>.001?target:null;v.currentTime=target;
+  if(resume){v.playbackRate=resume.rate;if(resume.paused)return;}
   v.play().catch(()=>{if(isCurrent())message.textContent='請按此處播放器的播放鍵。';});
  };
  v.onerror=()=>{if(isCurrent()){clearTimeout(playbackTimer);playbackTimer=null;updateSpeaking(null);message.textContent=(DATA.read_only?'媒體':'本機媒體')+'無法載入，可重按播放或使用該句的 YouTube 連結。';}};
@@ -559,6 +564,26 @@ function playRange(start,end,label,audioSlot=null){
  }else loadSource(source);
  if(!audio||wasVideo)updateMediaVisibility();
  if(audio)positions.forEach(({pane,top})=>{pane.scrollTop=top;});
+}
+function videoState(){
+ if(!playbackRange||playbackRange.audio||$('#video-view')?.hidden!==false)return null;
+ if(DATA.video_provider==='youtube'){
+  if(!youtubePlayer?.getCurrentTime)return {time:playbackRange.start,rate:1,paused:false};
+  return {time:youtubePlayer.getCurrentTime(),rate:youtubePlayer.getPlaybackRate()||1,paused:![1,3].includes(youtubePlayer.getPlayerState())};
+ }
+ const v=$('#lesson-video');if(!v)return null;
+ if(v.readyState<1)return {time:playbackRange.start,rate:1,paused:false};
+ return {time:v.currentTime,rate:v.playbackRate,paused:v.paused};
+}
+function saveVideoState(){
+ try{const saved=videoState();if(saved)sessionStorage.setItem(VIDEO_KEY,JSON.stringify({schema:1,...saved}));else sessionStorage.removeItem(VIDEO_KEY);}
+ catch{} // Unavailable storage only loses the reopen-after-reload convenience.
+}
+function restoreVideoState(){
+ let saved=null;try{saved=JSON.parse(sessionStorage.getItem(VIDEO_KEY)||'null');}catch{return;}
+ if(saved?.schema!==1||!Number.isFinite(saved.time)||saved.time<0||DATA.media_kind==='audio')return;
+ const rate=Number.isFinite(saved.rate)&&saved.rate>0?saved.rate:1;
+ playRange(saved.time,saved.time+1,'影片',null,{rate,paused:!!saved.paused});
 }
 function hideVideo(){
  stopVideo();$('#video-message').textContent='';
@@ -767,6 +792,8 @@ restoreLayoutPreferences();
 if(!DATA.read_only)restoreDrafts();
 const initial=Number(location.hash.match(/^#seg-(\d+)$/)?.[1]||1)-1;
 showSegment(Math.max(0,Math.min(initial,DATA.segments.length-1)));
+window.addEventListener('pagehide',saveVideoState);
+restoreVideoState();
 setTranscript(transcriptOpen,false,false);
 if(!DATA.read_only)loadManualEdits();
 
@@ -783,15 +810,15 @@ function loadYouTubeAPI(){
  });
  return youtubeAPI;
 }
-async function playYouTubeRange(start,end,label){
+async function playYouTubeRange(start,end,label,resume=null){
  stopVideo();
  const request=playbackRequest;
- playbackRange={start,end,label,audio:false,free:false};
+ playbackRange={start,end,label,audio:false,free:!!resume};
  $('#media-area').classList.add('playing');$('#slide-view').hidden=true;
  $('#video-view').hidden=false;$('#video-tools').hidden=false;$('#lesson-video').hidden=true;
  $('#video-youtube').href=youtubeAt(start);
  const message=$('#video-message');message.textContent='正在載入 YouTube…';
- let ready=false,finished=false;
+ let ready=false,finished=false,pendingRate=resume?.rate;
  playbackRange.seekTo=(time,keepPaused=false)=>{
   if(request!==playbackRequest)return;
   start=time;playbackRange.free=true;finished=false;updateSpeaking(null);
@@ -810,7 +837,7 @@ async function playYouTubeRange(start,end,label){
      if(request!==playbackRequest)return;
      ready=true;
      message.textContent='若未自動播放，請按 YouTube 播放鍵。';
-     event.target.loadVideoById({videoId:DATA.youtube_source_id,startSeconds:start});
+     event.target[resume?.paused?'cueVideoById':'loadVideoById']({videoId:DATA.youtube_source_id,startSeconds:start});
      youtubePoll=setInterval(()=>{
       if(request!==playbackRequest||!youtubePlayer)return;
       const t=youtubePlayer.getCurrentTime(),now=performance.now();
@@ -824,6 +851,8 @@ async function playYouTubeRange(start,end,label){
     },
     onStateChange:event=>{
      if(request!==playbackRequest)return;
+     // The rate only sticks once the video is cued (5) or playing (1).
+     if(pendingRate&&[1,5].includes(event.data)){event.target.setPlaybackRate(pendingRate);pendingRate=null;}
      if(event.data===1){if(finished){playbackRange.free=true;finished=false;}message.textContent='';}
      else updateSpeaking(null);
     },
