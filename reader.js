@@ -54,7 +54,7 @@ function restoreDrafts(){
 }
 function refreshManualRows(){
  if(DATA.reading_paragraphs?.length)document.querySelectorAll('[data-reading-ids]').forEach(row=>{
-  row.innerHTML=readingParagraphHTML(row.dataset.readingIds.split(',').map(Number));
+  if(!row.querySelector('.reading-inline-active'))row.innerHTML=readingParagraphHTML(row.dataset.readingIds.split(',').map(Number));
  });
  document.querySelectorAll('.utterance').forEach(row=>{
   const id=Number(row.dataset.source),editing=Object.hasOwn(editDrafts,id);
@@ -113,7 +113,7 @@ function readingParagraphText(ids){
 function readingParagraphHTML(ids){
  const p=readingParagraph(ids),text=readingParagraphText(ids);
  const sentences=p&&text===p.text?(p.sentences?.length?p.sentences:[{text,source_ids:ids}]):ids.map(id=>({text:transcriptText(id),source_ids:[id]}));
- return sentences.map(s=>`<span class="reading-sentence" role="button" tabindex="0" aria-label="播放中點擊可跳到 ${stamp(DATA.transcript[s.source_ids[0]].start)}；未播放時返回講義" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(s.text)}</span>`).join('');
+ return sentences.map(s=>`<span class="reading-sentence" role="button" tabindex="0" aria-label="播放中點擊可跳到 ${stamp(DATA.transcript[s.source_ids[0]].start)}；未播放時返回講義" data-sentence-ids="${s.source_ids.join(',')}" data-return="${s.source_ids[0]}">${esc(globalThis.readingEdits?.[s.source_ids.join(',')]??s.text)}</span>`).join('');
 }
 function displayedTranscriptText(id,row){
  return row?.closest?.('.transcript-group')?.classList.contains('show-details')?transcriptText(id):readingText(id);
@@ -594,11 +594,12 @@ document.addEventListener('keydown',e=>{
 // Hovering (or tapping, on touch screens) a reading sentence shows its corrected originals.
 let peekSentence=null,lastPointer='mouse',peekHideTimer=null;
 function showSourcePeek(sentence,touch){
+ if(sentence.closest('.reading-paragraph')?.querySelector('.reading-inline-active'))return;
  clearTimeout(peekHideTimer);
  const ids=sentence.dataset.sentenceIds.split(',').map(Number);
  let peek=$('#source-peek');
  if(!peek){peek=document.createElement('div');peek.id='source-peek';peek.setAttribute('role','dialog');peek.setAttribute('aria-label','校訂原話');document.body.append(peek);}
- peek.innerHTML=`<p class="peek-label">校訂原話</p>${ids.map(id=>`<p><time>${stamp(DATA.transcript[id].start)}</time>${esc(transcriptText(id))}</p>`).join('')}<button data-edit-originals="${ids.join(',')}">編輯</button>${touch?`<button data-return="${ids[0]}">回到講義</button>`:''}`;
+ peek.innerHTML=`<div class="peek-header"><span class="peek-label">校訂原話</span><button data-edit-reading="${ids.join(',')}">編輯</button></div>${ids.map(id=>`<p><time>${stamp(DATA.transcript[id].start)}</time>${esc(transcriptText(id))}</p>`).join('')}${touch?`<button data-return="${ids[0]}">回到講義</button>`:''}`;
  peek.classList.toggle('is-touch',touch);peek.hidden=false;
  peekSentence?.classList.remove('is-peeked');peekSentence=sentence;sentence.classList.add('is-peeked');sentence.setAttribute('aria-describedby','source-peek');
  const rects=sentence.getClientRects(),first=rects[0],last=rects[rects.length-1],gap=8;
@@ -616,6 +617,9 @@ function hideSourcePeek(){
  const peek=$('#source-peek');if(peek)peek.hidden=true;
 }
 document.addEventListener('click',e=>{
+ if(e.target.closest?.('.reading-inline-active,.reading-inline-actions'))return;
+ const editReading=e.target.closest('[data-edit-reading]');
+ if(editReading){const sentence=peekSentence;hideSourcePeek();document.dispatchEvent(new CustomEvent('lecturethread:edit-reading',{detail:{sentence}}));return;}
  const editOriginals=e.target.closest('[data-edit-originals]');
  if(editOriginals){
   const ids=editOriginals.dataset.editOriginals.split(',').map(Number);hideSourcePeek();
@@ -664,6 +668,7 @@ document.addEventListener('click',e=>{
  if(e.target.id==='follow'){state.follow=!state.follow;e.target.setAttribute('aria-pressed',String(state.follow));e.target.textContent=state.follow?'跟隨閱讀：開':'跟隨閱讀：關';if(state.follow)scrollTranscript()}
 });
 document.addEventListener('keydown',e=>{
+ if(e.target.closest?.('.reading-inline-active,.reading-inline-actions'))return;
  if(e.target.matches('[data-return]')&&['Enter',' '].includes(e.key)){e.preventDefault();e.target.click();return;}
  if(e.target.matches('[data-source-edit]')){
   if(e.key==='Escape'){e.preventDefault();editTranscript(Number(e.target.dataset.sourceEdit),'cancel');return;}
