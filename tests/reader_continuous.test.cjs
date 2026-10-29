@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require('node:path').join(__dirname,'..','reader.js'),'utf8');
 test('free playback follows occurrence boundaries, paragraphs, revisits and backward seeks',()=>{
- const state={segment:1,paragraph:0};let switches=[],selections=[];
+ const state={segment:1,paragraph:0,notesFollow:true};let switches=[],selections=[];
  const context=vm.createContext({playbackRange:{free:true},savingEdits:new Set(),document:{activeElement:null},state,
  DATA:{segments:[{start:0,end:30},{start:0,end:10,sections:[{time:0,end:5},{time:5,end:10}]},{start:10,end:20,sections:[{time:11,end:20}]},{start:20,end:30,sections:[{time:20,end:30}]}]},
  showPlaybackSegment(i){switches.push(i);state.segment=i;state.paragraph=-1;},setParagraph(i){selections.push(i);state.paragraph=i;},$:()=>null});
@@ -11,6 +11,26 @@ test('free playback follows occurrence boundaries, paragraphs, revisits and back
  context.syncPlaybackPosition(20);assert.deepEqual(switches,[2,3]);
  context.syncPlaybackPosition(2);assert.deepEqual(switches,[2,3,1]);
  context.playbackRange.free=false;context.syncPlaybackPosition(25);assert.equal(state.segment,1);
+});
+test('browsing the notes during video playback stops pulling them back to the playing section',()=>{
+ const state={segment:1,paragraph:0,notesFollow:true};let selections=[];
+ const context=vm.createContext({playbackRange:{free:true},savingEdits:new Set(),document:{activeElement:null},state,
+ DATA:{segments:[{start:0,end:10},{start:0,end:10,sections:[{time:0,end:5},{time:5,end:10}]}]},
+ showPlaybackSegment(){},setParagraph(i){selections.push(i);state.paragraph=i;},$:()=>null});
+ vm.runInContext(source.slice(source.indexOf('function syncPlaybackPosition('),source.indexOf('function showSegment(')),context);
+ state.notesFollow=false;context.syncPlaybackPosition(6);assert.deepEqual(selections,[]);
+ state.notesFollow=true;context.syncPlaybackPosition(6);assert.deepEqual(selections,[1]);
+});
+test('choosing a section while the video shows seeks it and resumes following',()=>{
+ const state={segment:1,paragraph:0,follow:false,notesFollow:false},calls=[],video={hidden:false};
+ const context=vm.createContext({state,savingEdits:new Set(),playbackRange:{audio:false,seekTo:(t,keepPaused)=>calls.push(['seek',t,keepPaused])},
+  DATA:{segments:[{},{sections:[{time:0,end:5},{time:7,end:10}]}]},$:s=>s==='#video-view'?video:null,
+  updateFollowControl(){},setParagraph:i=>calls.push(['paragraph',i])});
+ vm.runInContext(source.slice(source.indexOf('function seekSection('),source.indexOf('function scrollPlaybackSentence(')),context);
+ assert.equal(context.seekSection(1),true);assert.deepEqual(calls,[['seek',7,true],['paragraph',1]]);
+ assert.equal(state.follow,true);assert.equal(state.notesFollow,true);
+ calls.length=0;video.hidden=true;assert.equal(context.seekSection(0),false);assert.deepEqual(calls,[]);
+ video.hidden=false;context.playbackRange.audio=true;assert.equal(context.seekSection(0),false);
 });
 test('content refresh keeps every ancestor of the playing audio connected',()=>{
  function node(name){return {name,children:[],parentElement:null,hidden:false,attrs:{},className:'',removeAttribute(k){delete this.attrs[k]},append(n){this.children.push(n);n.parentElement=this},contains(n){return n===this||this.children.some(c=>c.contains(n))},remove(){const p=this.parentElement;p.children=p.children.filter(c=>c!==this);this.parentElement=null},insertAdjacentHTML(_,html){this.html=html}}}

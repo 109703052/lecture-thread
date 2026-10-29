@@ -4,6 +4,41 @@ const {readFileSync}=require('node:fs');
 const {join}=require('node:path');
 const vm=require('node:vm');
 
+test('bilingual text follows the source revision and hides stale translations after editing',async()=>{
+ const t=transcript();t.context.esc=String;
+ t.context.location.search='?lang=bi';
+ t.DATA.translations={'0':{original:'原句一',text:'Chinese translation'}};
+ t.DATA.reading_paragraphs=[{source_ids:[0],originals:['原句一'],text:'English reading.',
+  sentences:[{text:'English reading.',source_ids:[0]}],text_zh:'中文閱讀稿。',
+  sentences_zh:[{text:'中文閱讀稿。',source_ids:[0]}]}];
+ await t.context.loadManualEdits();
+ assert.equal(t.context.translationText(0),'Chinese translation');
+ assert.match(t.context.readingParagraphHTML([0]),/lang="en"/);
+ assert.match(t.context.readingParagraphHTML([0]),/中文閱讀稿。/);
+ await t.context.editTranscript(0,'open');t.draft(0,'Updated English');await t.context.editTranscript(0,'save');
+ assert.equal(t.context.translationText(0),'');
+ assert.doesNotMatch(t.context.readingParagraphHTML([0]),/中文閱讀稿。/);
+ assert.equal(t.DATA.translations['0'].text,'Chinese translation');
+});
+
+test('translated courses default to Chinese reading and retain source-linked sentences',()=>{
+ const t=transcript();t.context.esc=String;
+ t.DATA.translations={'0':{original:'原句一',text:'中文原話。'}};
+ t.DATA.reading_paragraphs=[{source_ids:[0],originals:['原句一'],text:'English reading.',sentences:[{text:'English reading.',source_ids:[0]}],text_zh:'中文閱讀稿。',sentences_zh:[{text:'中文閱讀稿。',source_ids:[0]}]}];
+ const html=t.context.readingParagraphHTML([0]);
+ assert.match(html,/中文閱讀稿。/);assert.match(html,/data-sentence-ids="0"/);
+ assert.match(html,/data-reading-language="zh-Hant"/);assert.doesNotMatch(html,/English reading|lang="en"/);
+ t.context.location.search='?lang=bi';assert.match(t.context.readingParagraphHTML([0]),/English reading/);
+});
+
+test('Chinese reading never silently displays stale translations or falls back to English',()=>{
+ const t=transcript();t.context.esc=String;
+ t.DATA.translations={'0':{original:'old source',text:'過期中文'}};
+ t.DATA.reading_paragraphs=[{source_ids:[0],originals:['old source'],text:'Old English',text_zh:'過期閱讀稿',sentences_zh:[{text:'過期閱讀稿',source_ids:[0]}]}];
+ const html=t.context.readingParagraphHTML([0]);
+ assert.match(html,/中文翻譯尚待更新/);assert.doesNotMatch(html,/過期|Old English|原句一/);
+});
+
 function transcript(saved=new Map(),backend={revision:"v0",version:0,edits:{}}){
  const elements=new Map(),rows=[];let scrolls=0,download;
  function element(key){
@@ -157,6 +192,31 @@ test('manual scrolling pauses follow without losing playback highlight and expli
  assert.equal(t.element('#follow')['aria-pressed'],'true');
 });
 
+test('paired English and Chinese reading sentences highlight and clear together',()=>{
+ const t=transcript();t.range(0,6);
+ const group={classList:{contains:()=>false},querySelector:()=>sentences[0]};
+ const sentences=['en','zh-Hant'].map(language=>({dataset:{sentenceIds:'0,1',readingLanguage:language},
+  getBoundingClientRect:()=>({top:170,bottom:240}),closest:()=>group,
+  classList:{toggle(name,value){this[name]=value;}}}));
+ t.rows.forEach(row=>row.closest=()=>group);
+ t.context.document.querySelectorAll=selector=>selector==='.reading-sentence'?sentences:t.rows;
+ t.context.updateSpeaking(.5);
+ assert.deepEqual(sentences.map(s=>s.classList['is-speaking']),[true,true]);
+ t.context.updateSpeaking(null);
+ assert.deepEqual(sentences.map(s=>s.classList['is-speaking']),[false,false]);
+});
+
+test('playback caps an ASR tail at media duration without changing source times',()=>{
+ const source=readFileSync(join(__dirname,'..','reader.js'),'utf8');
+ const DATA={media_duration:6,video_provider:'youtube',transcript:[{start:5,end:7}]};let requested;
+ const context=vm.createContext({DATA,playYouTubeRange:(...args)=>requested=args});
+ const start=source.indexOf('function playRange(');
+ vm.runInContext(source.slice(start,source.indexOf('// Listening stays',start))+'}',context);
+ context.playRange(5,7,'tail');
+ assert.deepEqual(requested.slice(0,3),[5,6,'tail']);
+ assert.equal(DATA.transcript[0].end,7);
+});
+
 test('free playback highlights the actual sentence outside the initial range',()=>{
  const t=transcript();t.range(0,2,true);t.context.updateSpeaking(5.2);
  assert.equal(t.rows[2]['is-speaking'],true);assert.equal(t.rows[0]['is-speaking'],false);
@@ -197,4 +257,21 @@ test('reading sentences link to their originals and fall back to plain text afte
  const revised=t.context.readingParagraphHTML([0,1]);
  assert.match(revised,/data-sentence-ids="0" data-return="0">新校字<\/span>/);
  assert.match(revised,/data-sentence-ids="1" data-return="1">原句二<\/span>/);
+});
+
+test('fallback originals join English with spaces and Chinese with full-width commas',()=>{
+ const t=transcript();
+ t.DATA.transcript[0].text=' First sentence.';t.DATA.transcript[1].text=' and the second';
+ assert.equal(t.context.readingParagraphText([0,1]),'First sentence. and the second');
+ assert.equal(t.context.joinOriginals(['原句一','原句二']),'原句一，原句二');
+ assert.equal(t.context.joinOriginals(['原句一。','原句二']),'原句一。原句二');
+});
+
+test('timestamps switch to hours after sixty minutes',()=>{
+ const source=readFileSync(join(__dirname,'..','reader.js'),'utf8');
+ const start=source.indexOf('function stamp(');
+ const context=vm.createContext({});vm.runInContext(source.slice(start,source.indexOf('\n}',start)+2),context);
+ assert.equal(context.stamp(65.9),'01:05');
+ assert.equal(context.stamp(3599),'59:59');
+ assert.equal(context.stamp(7257.7),'02:00:57');
 });

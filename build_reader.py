@@ -3,6 +3,7 @@ import argparse, hashlib, html as html_module, json, shutil
 from pathlib import Path
 from manual_edits import ManualEditsStore
 from reading_layer import load_reading_paragraphs
+from bilingual_layer import load_translations
 from course_config import load_course
 from editorial_content import load_editorial, editorial_segments
 ROOT=Path(__file__).resolve().parent
@@ -82,11 +83,12 @@ def build(course=None, *, publish_dir=None, audio_url=None):
     display_title=editorial['title'] if editorial else course.title
     data=dict(segments=segments,transcript=tx,alignment='editorial-source-ids-with-occurrence-appendix' if editorial else 'source-time-overlap',youtube_id=course.id,
               course_id=course.id,course_title=display_title,course_description=course.description,
-              youtube_source_id=course.youtube_id,video_src=video_src,media_kind=course.media_kind,
+              youtube_source_id=course.youtube_id,video_src=video_src,media_kind=course.media_kind,media_duration=evidence[-1]['end'],
               transcript_revision=hashlib.sha256((OUT/'transcript.corrected.json').read_bytes()).hexdigest(),
               manual_edits=ManualEditsStore(OUT,course.id).snapshot())
     data['reading_transcript'] = load_reading_transcript(OUT/'transcript.reading.json', tx, data['transcript_revision'])
     data['reading_paragraphs'] = load_reading_paragraphs(OUT/'transcript.reading.json', tx, data['transcript_revision'])
+    data['translations'] = load_translations(OUT/'transcript.translation.json', tx, data['transcript_revision'])
     data['transcript'] = apply_transcript_review(OUT/'transcript.reviewed.json', tx, data['transcript_revision'])
     for segment in segments:
         for section in segment['sections']:

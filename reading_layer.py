@@ -52,6 +52,11 @@ def load_reading_paragraphs(path, transcript, revision):
             raise ValueError('Invalid reading paragraph source mapping')
         if 'sentences' in row:
             validate_sentences(row['sentences'], ids, row['text'])
+        if 'text_zh' in row:
+            if not isinstance(row['text_zh'], str) or not row['text_zh'].strip():
+                raise ValueError('Chinese reading translation must be non-empty')
+            translated = row.get('sentences_zh')
+            validate_sentences(translated, ids, row['text_zh'])
         covered.extend(ids)
         result.append(row)
     if covered != list(range(len(transcript))):

@@ -31,7 +31,7 @@ test('editorial playback updates slides even when the speaking source has not ch
 });
 
 test('editorial playback chooses the chapter before its overlapping source appendix',()=>{
- const state={segment:1,paragraph:0};let switches=[];
+ const state={segment:1,paragraph:0,notesFollow:true};let switches=[];
  const context=vm.createContext({playbackRange:{free:true},savingEdits:new Set(),document:{activeElement:null},state,
  DATA:{segments:[{start:0,end:20},
   {start:0,end:10,sections:[{time:0,end:10}]},{start:10,end:20,sections:[{time:10,end:20}]},
