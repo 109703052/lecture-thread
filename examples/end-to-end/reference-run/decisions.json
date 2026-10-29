@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "alignment_sha256": "e0702fad853745c5ea044f0835d689771161eabcba0cfbfe754dda7fd474d29b",
+  "differences_sha256": "368042edb3b8f32d6ddd794769adc003b1c21e3bc6d2e054b7523795f80336a7",
+  "region_ocr_sha256": "a4fa8f941b2a5bc39bdff2b6ae5009b2c46d3e0a93208d6e39c304644927f9da",
+  "reviewer": "Claude Code (AI assistant, acting as the human-review step for this example)",
+  "reviewed_at": "2026-10-29T12:34:45.553293+00:00",
+  "method": "Viewed runs.png (first frame of each run) and every diff-XX.png before/after crop; read review.md OCR clues. Did not read expected_events.json or the narration script for these decisions. Did not watch the full video frame by frame.",
+  "allowed": {
+    "runs": [
+      "confirmed",
+      "corrected",
+      "split",
+      "noise"
+    ],
+    "differences": [
+      "annotation_add",
+      "annotation_erase",
+      "reveal",
+      "content_change",
+      "noise"
+    ]
+  },
+  "runs": [
+    {
+      "id": "R01",
+      "start": 0,
+      "last_observed": 14,
+      "status": "candidate",
+      "candidate_page": "cq:1",
+      "decision": "confirmed",
+      "page_id": "cq:1",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R02",
+      "start": 15,
+      "last_observed": 38,
+      "status": "candidate",
+      "candidate_page": "cq:2",
+      "decision": "confirmed",
+      "page_id": "cq:2",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R03",
+      "start": 39,
+      "last_observed": 65,
+      "status": "candidate",
+      "candidate_page": "cq:3",
+      "decision": "confirmed",
+      "page_id": "cq:3",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R04",
+      "start": 66,
+      "last_observed": 101,
+      "status": "candidate",
+      "candidate_page": "cq:4",
+      "decision": "confirmed",
+      "page_id": "cq:4",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R05",
+      "start": 102,
+      "last_observed": 107,
+      "status": "candidate",
+      "candidate_page": "cq:2",
+      "decision": "confirmed",
+      "page_id": "cq:2",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R06",
+      "start": 108,
+      "last_observed": 142,
+      "status": "candidate",
+      "candidate_page": "cq:4",
+      "decision": "confirmed",
+      "page_id": "cq:4",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R07",
+      "start": 143,
+      "last_observed": 163,
+      "status": "candidate",
+      "candidate_page": "cq:5",
+      "decision": "confirmed",
+      "page_id": "cq:5",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R08",
+      "start": 164,
+      "last_observed": 171,
+      "status": "candidate",
+      "candidate_page": "cq:3",
+      "decision": "confirmed",
+      "page_id": "cq:3",
+      "note": "縮圖與候選頁標題、版面一致"
+    },
+    {
+      "id": "R09",
+      "start": 172,
+      "last_observed": 183,
+      "status": "candidate",
+      "candidate_page": "cq:6",
+      "decision": "confirmed",
+      "page_id": "cq:6",
+      "note": "縮圖與候選頁標題、版面一致"
+    }
+  ],
+  "differences": [
+    {
+      "id": "D01",
+      "page_id": "cq:3",
+      "before_time": 45,
+      "after_time": 50,
+      "decision": "reveal",
+      "meaning": "規則頁逐步出現第二條「② 空：front == rear」",
+      "note": "六個區塊都屬於新出現的一行字；OCR 只得到片段"
+    },
+    {
+      "id": "D02",
+      "page_id": "cq:3",
+      "before_time": 50,
+      "after_time": 55,
+      "decision": "reveal",
+      "meaning": "規則頁逐步出現第三條「③ 滿：(rear + 1) % N == front（保留一格，最多存 N - 1 個）」",
+      "note": "OCR 片段含「（保留一格」「front」，其餘破碎"
+    },
+    {
+      "id": "D03",
+      "page_id": "cq:4",
+      "before_time": 95,
+      "after_time": 100,
+      "decision": "annotation_add",
+      "meaning": "紅色手寫箭頭：陣列下方由索引 4 繞回索引 0，旁註「4→0」",
+      "note": "after 裁切清楚；OCR「4→0」與畫面一致"
+    },
+    {
+      "id": "D04",
+      "page_id": "cq:4",
+      "before_time": 110,
+      "after_time": 115,
+      "decision": "annotation_add",
+      "meaning": "紅色手寫註記：索引 2 上方加向下箭頭與「front」",
+      "note": "裁切清楚可讀，但區域 OCR 回傳空字串；以原圖判讀"
+    },
+    {
+      "id": "D05",
+      "page_id": "cq:4",
+      "before_time": 130,
+      "after_time": 135,
+      "decision": "annotation_erase",
+      "meaning": "擦除先前的「4→0」繞回箭頭；「front」註記仍在",
+      "note": "before 有箭頭與「4→0」，after 兩區皆空白"
+    }
+  ],
+  "missed": [],
+  "missed_note": "只檢視偵測器輸出的區間與差異；未逐格觀看整支影片，因此無法宣稱沒有漏失。"
+}

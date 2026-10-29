@@ -37,13 +37,19 @@ LectureThread 是一個持續開發中的課程閱讀工具：把投影片、整
 
 示範共 36 秒，音訊是合成提示音，逐字稿是預先撰寫的教學腳本，沒有口語旁白或影片。它展示的是閱讀器的互動方式，不代表語音辨識或自動講義生成的品質。截圖與示範教材不包含實際課程資料。
 
+### 原創端到端範例（含 ASR 與 OCR）
+
+想實際走一次完整處理流程，可以用另一套原創微課程「循環佇列如何分辨空與滿」（約 3 分鐘，合成旁白，不是真人授課）：在本機產生 PDF、旁白與影片，執行語音辨識、原稿對齊與區域 OCR，人工核對畫面變化，校訂逐字稿、撰寫閱讀稿與講義，最後建置閱讀頁並對照標準答案評估。需要完整處理環境與 NVIDIA GPU。
+
+**[原創端到端範例指南 →](docs/end-to-end-example.md)**
+
 ## 三種使用情境
 
 | 情境 | 需要 | 不需要 | 說明 |
 |---|---|---|---|
 | 公開閱讀器示範 | Windows x64、PowerShell、uv 可攜版（首次下載 Python 需網路） | GPU、模型、FFmpeg、Node.js、第三方 Python 套件 | [公開示範入門](docs/quickstart.md) |
 | 開發與測試 | 上述環境，加上 `requirements-dev.txt`、Node.js 24、FFmpeg／ffprobe | GPU、模型、Ollama、上游 checkout、私人課程 | [開發與測試](docs/development.md)；與 CI 相同的命令 |
-| 完整課程處理 | 鎖版完整依賴、上游 checkout、FFmpeg、CUDA GPU、可攜 Ollama 與模型 | — | [睡前處理一堂課](docs/overnight.md)；需自行準備有權使用的課程素材 |
+| 完整課程處理 | 鎖版完整依賴、上游 checkout、FFmpeg、CUDA GPU、可攜 Ollama 與模型 | — | [睡前處理一堂課](docs/overnight.md)；需自行準備有權使用的課程素材。先用 [原創端到端範例](docs/end-to-end-example.md) 熟悉流程（不需 Ollama） |
 
 ## 目前階段與接下來的方向
 
@@ -66,6 +72,7 @@ LectureThread 目前是 Windows 本地研究原型，原始碼公開於 GitHub�
 - [課程設定](docs/courses.md)：載入自己已準備好的講義、逐字稿及媒體資料。
 - [新課程整理規範](profiles/computer-science/note-spec.md)：投影片校訂、保留原話的 AI 修順閱讀稿、講義與清單連動更新，以及發布前驗收。
 - [睡前處理一堂課](docs/overnight.md)：從影片開始、查看進度、失敗續跑及閱讀成果。
+- [原創端到端範例](docs/end-to-end-example.md)：用原創影片與 PDF 逐步走過 ASR、視覺核對、人工修訂、講義撰寫與閱讀頁，並說明換成自己的素材時要做什麼。
 - [開發與測試](docs/development.md) · [參與貢獻](CONTRIBUTING.md)：開發環境、與 CI 相同的測試命令、程式架構與參與方式。
 - [公開準備狀態](docs/open-source-readiness.md)：目前驗收條件、結果與歷史紀錄。
 

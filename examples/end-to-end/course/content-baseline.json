@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "purpose": "講義與閱讀稿的內容核對基準。由腳本作者另外整理，不供任何偵測或辨識步驟讀取。",
+  "design": {
+    "capacity_N": 5,
+    "front": "指向第一個（最早放入、下一個要取出的）元素",
+    "rear": "指向下一個要放入的位置",
+    "advance": "i = (i + 1) % N",
+    "empty": "front == rear",
+    "full": "(rear + 1) % N == front",
+    "max_elements": 4,
+    "not_used": "另存 count 的設計只被提及為另一種做法，本課不混用"
+  },
+  "trace": [
+    {"step": 0, "operation": "初始", "front": 0, "rear": 0, "cells": ["", "", "", "", ""], "state": "空"},
+    {"step": 1, "operation": "enqueue A, B, C", "front": 0, "rear": 3, "cells": ["A", "B", "C", "", ""], "state": "非空非滿"},
+    {"step": 2, "operation": "dequeue ×2，取出 A、B", "front": 2, "rear": 3, "cells": ["", "", "C", "", ""], "state": "非空非滿"},
+    {"step": 3, "operation": "enqueue D, E", "front": 2, "rear": 0, "cells": ["", "", "C", "D", "E"], "state": "非空非滿；rear 由 4 繞回 0"},
+    {"step": 4, "operation": "enqueue F", "front": 2, "rear": 1, "cells": ["F", "", "C", "D", "E"], "state": "滿：(1 + 1) % 5 = 2 = front"},
+    {"step": 5, "operation": "enqueue G", "front": 2, "rear": 1, "cells": ["F", "", "C", "D", "E"], "state": "已滿，拒絕；狀態不變"}
+  ],
+  "must_teach": [
+    "線性佇列在 rear 到尾端後，即使前面有空格也無法再放；循環佇列用取餘數讓索引繞回 0",
+    "front／rear 各自代表什麼位置",
+    "空與滿的判定式，以及為何需要保留一格",
+    "完整追蹤步驟 0–5 的 front、rear 與陣列內容",
+    "若允許放滿 N 個，滿與空都會變成 front == rear 而無法區分",
+    "容量 N 最多存 N − 1 個元素"
+  ],
+  "must_not_claim": [
+    "同時使用 count 與保留一格兩種判定",
+    "front 指向最後一個元素，或 rear 指向最後一個已放入的元素",
+    "容量 5 可以存 5 個元素",
+    "合成語音的辨識結果代表真實授課錄音的準確率"
+  ]
+}

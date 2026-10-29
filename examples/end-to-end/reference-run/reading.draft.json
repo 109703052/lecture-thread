@@ -1,0 +1,340 @@
+{
+ "author": "Claude Code",
+ "authoring_method": "Claude Code directly smoothed the corrected transcript (punctuation, spacing, joined split ASR lines). No facts, numbers, conditions or self-references were added or removed; sentence source maps written by hand and checked against every original.",
+ "paragraphs": [
+  {
+   "source_ids": [
+    0
+   ],
+   "text": "這段微課程要回答一個問題：用陣列實作循環佇列時，程式怎麼分辨佇列是空的，還是滿的。我們會用容量 5 的陣列，一步一步追蹤 front 和 rear 兩個索引。",
+   "sentences": [
+    {
+     "text": "這段微課程要回答一個問題：用陣列實作循環佇列時，程式怎麼分辨佇列是空的，還是滿的。",
+     "source_ids": [
+      0
+     ]
+    },
+    {
+     "text": "我們會用容量 5 的陣列，一步一步追蹤 front 和 rear 兩個索引。",
+     "source_ids": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    1,
+    2,
+    3
+   ],
+   "text": "先看為什麼需要繞回。一般的線性佇列，每次 enqueue 就把 rear 往後移一格；做了兩次 dequeue 之後，前面兩格雖然空了，rear 卻已經走到陣列尾端，不能再放資料。循環佇列的做法，是讓索引走到最後一格之後回到 0，寫成公式就是 i 等於 i 加 1，再對 N 取餘數。",
+   "sentences": [
+    {
+     "text": "先看為什麼需要繞回。",
+     "source_ids": [
+      1
+     ]
+    },
+    {
+     "text": "一般的線性佇列，每次 enqueue 就把 rear 往後移一格；做了兩次 dequeue 之後，前面兩格雖然空了，rear 卻已經走到陣列尾端，不能再放資料。",
+     "source_ids": [
+      1
+     ]
+    },
+    {
+     "text": "循環佇列的做法，是讓索引走到最後一格之後回到 0，寫成公式就是 i 等於 i 加 1，再對 N 取餘數。",
+     "source_ids": [
+      2,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "text": "這一課只用一種判定方式。第一條，front 指向第一個元素，rear 指向下一個要放入的位置。第二條，當 front 等於 rear，佇列是空的，因為 front 和 rear 之間沒有任何元素。第三條，當 rear 加 1 再對 N 取餘數，結果等於 front，佇列就算滿了。也就是說，我們刻意留下一格不放，容量 5 最多只存 4 個元素。",
+   "sentences": [
+    {
+     "text": "這一課只用一種判定方式。",
+     "source_ids": [
+      4
+     ]
+    },
+    {
+     "text": "第一條，front 指向第一個元素，rear 指向下一個要放入的位置。",
+     "source_ids": [
+      5
+     ]
+    },
+    {
+     "text": "第二條，當 front 等於 rear，佇列是空的，因為 front 和 rear 之間沒有任何元素。",
+     "source_ids": [
+      6,
+      7
+     ]
+    },
+    {
+     "text": "第三條，當 rear 加 1 再對 N 取餘數，結果等於 front，佇列就算滿了。",
+     "source_ids": [
+      8
+     ]
+    },
+    {
+     "text": "也就是說，我們刻意留下一格不放，容量 5 最多只存 4 個元素。",
+     "source_ids": [
+      9
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    10,
+    11,
+    12,
+    13,
+    14
+   ],
+   "text": "接著用 N 等於 5 實際追蹤。一開始 front 和 rear 都是 0，兩者相等，所以佇列是空的。放入 A、B、C 之後，rear 變成 3，front 還是 0。然後做兩次 dequeue，取出 A 和 B：front 從 0 移到 2，rear 仍然是 3，佇列裡只剩下 C。",
+   "sentences": [
+    {
+     "text": "接著用 N 等於 5 實際追蹤。",
+     "source_ids": [
+      10
+     ]
+    },
+    {
+     "text": "一開始 front 和 rear 都是 0，兩者相等，所以佇列是空的。",
+     "source_ids": [
+      11
+     ]
+    },
+    {
+     "text": "放入 A、B、C 之後，rear 變成 3，front 還是 0。",
+     "source_ids": [
+      12
+     ]
+    },
+    {
+     "text": "然後做兩次 dequeue，取出 A 和 B：front 從 0 移到 2，rear 仍然是 3，佇列裡只剩下 C。",
+     "source_ids": [
+      13,
+      14
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    15,
+    16,
+    17,
+    18
+   ],
+   "text": "再放入 D 和 E：D 放在索引 3，E 放在索引 4。放完 E 之後，rear 從 4 加 1 等於 5，5 對 5 取餘數是 0，所以 rear 繞回 0。我在下方的陣列畫一個箭頭，標出索引從 4 回到 0。",
+   "sentences": [
+    {
+     "text": "再放入 D 和 E：D 放在索引 3，E 放在索引 4。",
+     "source_ids": [
+      15,
+      16
+     ]
+    },
+    {
+     "text": "放完 E 之後，rear 從 4 加 1 等於 5，5 對 5 取餘數是 0，所以 rear 繞回 0。",
+     "source_ids": [
+      17
+     ]
+    },
+    {
+     "text": "我在下方的陣列畫一個箭頭，標出索引從 4 回到 0。",
+     "source_ids": [
+      18
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    19,
+    20,
+    21
+   ],
+   "text": "先翻回前一頁看一下公式：i 等於 i 加 1，再對 N 取餘數。好，回到追蹤表；剛才畫的箭頭還在，rear 現在是 0。",
+   "sentences": [
+    {
+     "text": "先翻回前一頁看一下公式：i 等於 i 加 1，再對 N 取餘數。",
+     "source_ids": [
+      19
+     ]
+    },
+    {
+     "text": "好，回到追蹤表；剛才畫的箭頭還在，rear 現在是 0。",
+     "source_ids": [
+      20,
+      21
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    22,
+    23,
+    24,
+    25
+   ],
+   "text": "現在 front 是 2，我在索引 2 下面標上 front。接著放入 F，F 放在索引 0，rear 變成 1。這時候檢查：rear 加 1 等於 2，2 對 5 取餘數還是 2，剛好等於 front，所以佇列已經滿了。裡面有 C、D、E、F 四個元素，索引 1 那一格刻意空著。",
+   "sentences": [
+    {
+     "text": "現在 front 是 2，我在索引 2 下面標上 front。",
+     "source_ids": [
+      22
+     ]
+    },
+    {
+     "text": "接著放入 F，F 放在索引 0，rear 變成 1。",
+     "source_ids": [
+      23
+     ]
+    },
+    {
+     "text": "這時候檢查：rear 加 1 等於 2，2 對 5 取餘數還是 2，剛好等於 front，所以佇列已經滿了。",
+     "source_ids": [
+      24
+     ]
+    },
+    {
+     "text": "裡面有 C、D、E、F 四個元素，索引 1 那一格刻意空著。",
+     "source_ids": [
+      25
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    26,
+    27,
+    28,
+    29
+   ],
+   "text": "我先把剛才的箭頭擦掉。如果這時候再 enqueue G，程式必須拒絕，因為佇列已經滿了。",
+   "sentences": [
+    {
+     "text": "我先把剛才的箭頭擦掉。",
+     "source_ids": [
+      26
+     ]
+    },
+    {
+     "text": "如果這時候再 enqueue G，程式必須拒絕，因為佇列已經滿了。",
+     "source_ids": [
+      27,
+      28,
+      29
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36
+   ],
+   "text": "為什麼要留一格？假設允許五格全部放滿，rear 繞一圈之後，會回到和 front 相同的位置。這時 front 等於 rear，和空佇列的條件完全一樣，程式就分不出空和滿。",
+   "sentences": [
+    {
+     "text": "為什麼要留一格？",
+     "source_ids": [
+      30
+     ]
+    },
+    {
+     "text": "假設允許五格全部放滿，rear 繞一圈之後，會回到和 front 相同的位置。",
+     "source_ids": [
+      31,
+      32,
+      33
+     ]
+    },
+    {
+     "text": "這時 front 等於 rear，和空佇列的條件完全一樣，程式就分不出空和滿。",
+     "source_ids": [
+      34,
+      35,
+      36
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    37,
+    38,
+    39,
+    40
+   ],
+   "text": "另一種常見做法，是另外記錄元素個數 count；那是不同的設計，這一課不和它混用。",
+   "sentences": [
+    {
+     "text": "另一種常見做法，是另外記錄元素個數 count；",
+     "source_ids": [
+      37,
+      38
+     ]
+    },
+    {
+     "text": "那是不同的設計，這一課不和它混用。",
+     "source_ids": [
+      39,
+      40
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    41,
+    42
+   ],
+   "text": "最後回到規則頁再確認一次：空，是 front 等於 rear；滿，是 rear 加 1 再取餘數，等於 front。",
+   "sentences": [
+    {
+     "text": "最後回到規則頁再確認一次：空，是 front 等於 rear；滿，是 rear 加 1 再取餘數，等於 front。",
+     "source_ids": [
+      41,
+      42
+     ]
+    }
+   ]
+  },
+  {
+   "source_ids": [
+    43
+   ],
+   "text": "總結一下：索引用取餘數繞回；保留一格空位，讓空和滿的條件不同；所以容量 N 的陣列，最多只能存 N - 1 個元素。",
+   "sentences": [
+    {
+     "text": "總結一下：索引用取餘數繞回；保留一格空位，讓空和滿的條件不同；所以容量 N 的陣列，最多只能存 N - 1 個元素。",
+     "source_ids": [
+      43
+     ]
+    }
+   ]
+  }
+ ]
+}

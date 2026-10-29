@@ -63,7 +63,7 @@ node --test "tests/*.test.cjs"
 
 | 類別 | 條件 | 內容 |
 |---|---|---|
-| 一般開發測試 | 只需 `requirements-dev.txt` | 課程設定、閱讀器建置、逐字稿與人工修訂保存、HTTP 媒體範圍、任務管線狀態與鎖、原稿配對、差異比較、OCR／裁切／畫面快取完整性等；以及全部 Node 閱讀器測試 |
+| 一般開發測試 | 只需 `requirements-dev.txt` | 課程設定、閱讀器建置、逐字稿與人工修訂保存、HTTP 媒體範圍、任務管線狀態與鎖、原稿配對、差異比較、OCR／裁切／畫面快取完整性、原創端到端範例的產生器與銜接工具（`tests/test_e2e_example.py`，不呼叫語音合成、ASR 或模型）等；以及全部 Node 閱讀器測試 |
 | 合成影片測試 | 另需 FFmpeg／ffprobe | `tests/test_comparison_frames.py`、`tests/test_visual_efficiency.py` 的 FFmpeg 案例、`tests/test_lecture_pipeline.py` 的抽圖案例。以程式產生的短片驗證，不使用真實課程 |
 | 選用整合測試 | 需要上游 checkout 或本機課程匯出 | `tests/test_cs_profile.py`、`tests/test_visual_pipeline.py` 的上游 quick_ocr 案例、`tests/test_viewer_sync.py`。原始碼不含這些資料，會明確跳過 |
 
@@ -112,7 +112,9 @@ git -C vendor/lecture-to-notes checkout --detach $upstreamRevision
 |---|---|---|---|
 | 舊整夜路線 | `lecture.cmd prepare`／`start`／`status`／`resume`／`serve` | 下載或讀取影片、Whisper 轉錄、每 2 秒抽圖、OCR、VLM、grounding、本機文字模型分批寫講義初稿、建置閱讀頁與待核對清單；可背景執行與失敗續跑 | 不使用原始投影片，也不使用 `visual` 的配對、比較畫面或快取；講義為待抽查的 AI 初稿 |
 | 原始投影片核對 | `lecture.cmd visual --job ... --references ... --out ... [--ocr-regions]` | 對既有任務的影片與原稿做頁面配對、換頁補抓、局部差異與選用的區域 OCR，輸出獨立核對資料 | 不啟動 Ollama，不改寫正式證據，不撰寫或發布講義；完成狀態是 `review_required` |
-| 直接撰寫與發布 | `editorial_publish.py --course ...`（`--check` 只驗證） | 讀取 AI 助理依 [講義規格](../profiles/computer-science/note-spec.md) 直接撰寫的 `editorial_chapters.json`，驗證來源與時間後建置閱讀頁 | 不呼叫任何模型；撰寫本身不是自動化步驟 |
+| 直接撰寫與發布 | `editorial_publish.py --course ...`（`--check` 只驗證） | 讀取 AI 助理（`author`：Codex 或 Claude Code）依 [講義規格](../profiles/computer-science/note-spec.md) 直接撰寫的 `editorial_chapters.json`，驗證來源與時間後建置閱讀頁 | 不呼叫任何模型；撰寫本身不是自動化步驟 |
+
+三條路線之間的銜接（原稿核對結果 → 畫面證據、校訂層、閱讀稿）目前以範例專用工具補上，完整操作與限制見 [原創端到端範例](end-to-end-example.md)。
 
 ## 原始投影片核對的實作細節
 

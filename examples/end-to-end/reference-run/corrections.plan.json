@@ -1,0 +1,312 @@
+{
+ "schema": 1,
+ "raw_transcript_sha256": "81049fe6cc7dc2087197dd2e71e16fe3b5ed24c558337e326839a41bb6e69fc2",
+ "reviewer": "Claude Code (AI assistant)",
+ "method": "Compared each OpenCC-normalized ASR segment with the original narration script (narration_script.json) and the deck text. Only misrecognitions, letter case of identifiers shown on slides, and a normalization error were changed; ASCII commas and digits for spoken numbers were kept. No audio was listened to.",
+ "corrections": [
+  {
+   "segment_id": 0,
+   "find": "時做",
+   "replace": "實作",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「實作」；同音誤聽"
+  },
+  {
+   "segment_id": 0,
+   "find": "註列",
+   "replace": "佇列",
+   "count": 2,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 1,
+   "find": "註列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 1,
+   "find": "inq",
+   "replace": "enqueue",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本與投影片為 enqueue；ASR 只辨出前段音"
+  },
+  {
+   "segment_id": 1,
+   "find": "deq",
+   "replace": "dequeue",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本與投影片為 dequeue；ASR 只辨出前段音"
+  },
+  {
+   "segment_id": 2,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 6,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 8,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 11,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 14,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 24,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 29,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 35,
+   "find": "注列",
+   "replace": "佇列",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「佇列」；ASR 同音誤聽"
+  },
+  {
+   "segment_id": 8,
+   "find": "REAR",
+   "replace": "rear",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片與規則式使用小寫 rear"
+  },
+  {
+   "segment_id": 8,
+   "find": "FRONT",
+   "replace": "front",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片與規則式使用小寫 front"
+  },
+  {
+   "segment_id": 9,
+   "find": "最多隻存",
+   "replace": "最多只存",
+   "count": 1,
+   "basis": "normalization-fix",
+   "reason": "OpenCC s2tw 把「只」轉成量詞「隻」；原始 ASR 為「只」"
+  },
+  {
+   "segment_id": 11,
+   "find": "FRONT",
+   "replace": "front",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 front"
+  },
+  {
+   "segment_id": 11,
+   "find": "REAR",
+   "replace": "rear",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 rear"
+  },
+  {
+   "segment_id": 12,
+   "find": "REAR",
+   "replace": "rear",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 rear"
+  },
+  {
+   "segment_id": 12,
+   "find": "FRONT",
+   "replace": "front",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 front"
+  },
+  {
+   "segment_id": 14,
+   "find": "front從0到2",
+   "replace": "front從0移到2",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「從零移到二」；ASR 漏掉「移」"
+  },
+  {
+   "segment_id": 14,
+   "find": "只剩下c",
+   "replace": "只剩下C",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "追蹤表的元素名稱為大寫 C"
+  },
+  {
+   "segment_id": 15,
+   "find": "再放入d和e",
+   "replace": "再放入D和E",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "追蹤表的元素名稱為大寫 D、E"
+  },
+  {
+   "segment_id": 16,
+   "find": "d放在索引3,e放在索引4",
+   "replace": "D放在索引3,E放在索引4",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "元素名稱為大寫 D、E"
+  },
+  {
+   "segment_id": 17,
+   "find": "放完e之後",
+   "replace": "放完E之後",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "元素名稱為大寫 E"
+  },
+  {
+   "segment_id": 17,
+   "find": "從4加e等於5",
+   "replace": "從4加1等於5",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「四加一」；「一」被辨成字母 e"
+  },
+  {
+   "segment_id": 19,
+   "find": "i等於i加e",
+   "replace": "i等於i加1",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「i 加一」；與前頁公式 i = (i + 1) % N 一致"
+  },
+  {
+   "segment_id": 19,
+   "find": "再對m取餘數",
+   "replace": "再對N取餘數",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本與公式為 N"
+  },
+  {
+   "segment_id": 23,
+   "find": "接著放入f,f放在索引0",
+   "replace": "接著放入F,F放在索引0",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "元素名稱為大寫 F"
+  },
+  {
+   "segment_id": 25,
+   "find": "裡面有c,d,e,f四個元素",
+   "replace": "裡面有C,D,E,F四個元素",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "元素名稱為大寫"
+  },
+  {
+   "segment_id": 27,
+   "find": "如果這時候在InQG",
+   "replace": "如果這時候再enqueue G",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「再 enqueue G」；「再」誤為「在」，enqueue 與 G 黏連"
+  },
+  {
+   "segment_id": 32,
+   "find": "Rear",
+   "replace": "rear",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 rear"
+  },
+  {
+   "segment_id": 33,
+   "find": "Front",
+   "replace": "front",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫 front"
+  },
+  {
+   "segment_id": 34,
+   "find": "Front等於Rear",
+   "replace": "front等於rear",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片使用小寫"
+  },
+  {
+   "segment_id": 38,
+   "find": "Count",
+   "replace": "count",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片寫作小寫 count"
+  },
+  {
+   "segment_id": 40,
+   "find": "這一刻",
+   "replace": "這一課",
+   "count": 1,
+   "basis": "narration-script",
+   "reason": "腳本為「這一課」；同音誤聽"
+  },
+  {
+   "segment_id": 43,
+   "find": "容量n的陣列",
+   "replace": "容量N的陣列",
+   "count": 1,
+   "basis": "slide-text",
+   "reason": "投影片與規則使用大寫 N"
+  },
+  {
+   "segment_id": 43,
+   "find": "最多隻能存n-1個",
+   "replace": "最多只能存N-1個",
+   "count": 1,
+   "basis": "normalization-fix",
+   "reason": "OpenCC 把「只」轉成「隻」；同時依投影片把 n 改為 N"
+  }
+ ]
+}

@@ -8,6 +8,10 @@ from pathlib import Path
 
 from pipeline_common import digest, read_json
 
+# AI assistants that author chapters directly from the evidence (never a local
+# text model). The author recorded in the document is the one published.
+DIRECT_AUTHORS = ('Codex', 'Claude Code')
+
 
 def _text(value, field):
     if not isinstance(value, str) or not value.strip():
@@ -19,8 +23,8 @@ def _number(value):
 
 
 def validate_editorial(doc, transcript, duration, raw_sha256):
-    if not isinstance(doc, dict) or doc.get('schema') != 1 or doc.get('author') != 'Codex':
-        raise ValueError('Editorial schema must be 1 and author must be Codex')
+    if not isinstance(doc, dict) or doc.get('schema') != 1 or doc.get('author') not in DIRECT_AUTHORS:
+        raise ValueError(f'Editorial schema must be 1 and author one of {DIRECT_AUTHORS}')
     if doc.get('raw_transcript_sha256') != raw_sha256:
         raise ValueError('Editorial raw transcript hash changed')
     for field in ('course_date', 'title', 'overview'):
@@ -86,7 +90,8 @@ def load_editorial(course_dir, evidence=None):
 
 def editorial_segments(doc, evidence, transcript, image_url):
     duration = evidence[-1]['end']
-    segments = [dict(title='全課總覽', region='Codex 直接撰寫講義', start=0, end=duration,
+    region = f'{doc["author"]} 直接撰寫講義'
+    segments = [dict(title='全課總覽', region=region, start=0, end=duration,
                      image=None, caution='依逐字稿與投影片證據整理；未逐句聽音覆核。',
                      alignment='editorial-source-ids', sections=[dict(
                          heading=doc['title'], text=doc['overview'], time=0, end=duration,
@@ -97,7 +102,7 @@ def editorial_segments(doc, evidence, transcript, image_url):
             end = chapter['paragraphs'][i+1]['time'] if i+1 < len(chapter['paragraphs']) else chapter['end']
             sections.append(dict(paragraph, end=end))
         representative = next((e for e in evidence if e['start'] <= chapter['start'] < e['end']), evidence[0])
-        segments.append(dict(title=chapter['title'], region='Codex 直接撰寫講義',
+        segments.append(dict(title=chapter['title'], region=region,
                              start=chapter['start'], end=chapter['end'], image=image_url(representative['image']),
                              sections=sections, caution='；'.join(c['message'] for c in chapter.get('checks', [])),
                              alignment='editorial-source-ids', summary=chapter['summary']))

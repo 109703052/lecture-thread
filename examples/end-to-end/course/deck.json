@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "deck_id": "cq",
+  "title": "循環佇列：如何分辨空與滿",
+  "page_size": [1280, 720],
+  "pages": [
+    {
+      "id": "title",
+      "title": "循環佇列：如何分辨空與滿",
+      "blocks": [
+        {"type": "subtitle", "text": "LectureThread 原創端到端範例｜合成旁白，不是真人授課"},
+        {"type": "bullets", "y": 330, "items": [
+          "用容量 N = 5 的陣列追蹤 front 與 rear",
+          "索引走到尾端後繞回 0",
+          "只採用一種空／滿判定：保留一格空位"
+        ]}
+      ]
+    },
+    {
+      "id": "wrap",
+      "title": "為什麼要繞回",
+      "blocks": [
+        {"type": "bullets", "y": 150, "items": [
+          "線性做法：rear 到陣列尾端就不能再放，前面空出的格子用不到",
+          "循環做法：索引走到 N - 1 之後回到 0"
+        ]},
+        {"type": "array", "x": 240, "y": 330, "caption": "線性佇列：dequeue 兩次之後", "cells": ["", "", "C", "D", "E"],
+         "pointers": [{"index": 2, "label": "front = 2"}, {"index": 5, "label": "rear = 5（超出陣列）"}]},
+        {"type": "formula", "y": 600, "text": "i = (i + 1) % N"}
+      ]
+    },
+    {
+      "id": "rule",
+      "title": "本課採用的判定規則",
+      "blocks": [
+        {"type": "bullets", "y": 170, "reveal": true, "size": 34, "items": [
+          "① front 指向第一個元素；rear 指向下一個要放入的位置",
+          "② 空：front == rear",
+          "③ 滿：(rear + 1) % N == front（保留一格，最多存 N - 1 個）"
+        ]}
+      ]
+    },
+    {
+      "id": "trace",
+      "title": "逐步追蹤：N = 5",
+      "blocks": [
+        {"type": "table", "x": 70, "y": 118, "row_height": 44, "widths": [80, 250, 100, 100, 260, 330],
+         "header": ["步驟", "操作", "front", "rear", "索引 0 1 2 3 4", "判定"],
+         "rows": [
+           ["0", "初始", "0", "0", "_ _ _ _ _", "front == rear → 空"],
+           ["1", "enqueue A, B, C", "0", "3", "A B C _ _", ""],
+           ["2", "dequeue ×2（A, B）", "2", "3", "_ _ C _ _", ""],
+           ["3", "enqueue D, E", "2", "0", "_ _ C D E", "rear 由 4 繞回 0"],
+           ["4", "enqueue F", "2", "1", "F _ C D E", "(1 + 1) % 5 = 2 = front → 滿"],
+           ["5", "enqueue G", "2", "1", "F _ C D E", "已滿，拒絕"]
+         ]},
+        {"type": "array", "x": 360, "y": 480, "caption": "陣列索引", "cells": ["", "", "", "", ""], "pointers": []}
+      ],
+      "marks": {
+        "wrap-arrow": {"type": "curve_arrow", "array": 1, "from": 4, "to": 0, "label": "4→0"},
+        "front-label": {"type": "pointer", "array": 1, "index": 2, "label": "front"}
+      }
+    },
+    {
+      "id": "why-gap",
+      "title": "為什麼要留一格？",
+      "blocks": [
+        {"type": "array", "x": 120, "y": 200, "caption": "假設允許放滿 5 個", "cells": ["F", "G", "C", "D", "E"],
+         "pointers": [{"index": 2, "label": "front = rear = 2"}]},
+        {"type": "array", "x": 700, "y": 200, "caption": "空佇列", "cells": ["", "", "", "", ""],
+         "pointers": [{"index": 2, "label": "front = rear = 2"}], "cell": 90},
+        {"type": "bullets", "y": 470, "items": [
+          "兩種狀態都是 front == rear，無法區分空與滿",
+          "本課做法：犧牲一格；另存 count 是另一種設計，本課不混用"
+        ]}
+      ]
+    },
+    {
+      "id": "summary",
+      "title": "小結",
+      "blocks": [
+        {"type": "bullets", "y": 190, "size": 34, "items": [
+          "索引用 (i + 1) % N 繞回",
+          "空：front == rear",
+          "滿：(rear + 1) % N == front",
+          "容量 N 的陣列最多存 N - 1 個元素"
+        ]}
+      ]
+    }
+  ]
+}

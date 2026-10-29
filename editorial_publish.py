@@ -1,4 +1,4 @@
-"""Publish Codex-authored chapters without invoking local or remote models.
+"""Publish directly authored (Codex / Claude Code) chapters without invoking local or remote models.
 
 Usage: .venv/Scripts/python.exe editorial_publish.py --course <manifest.json>
 The authored input is course_dir/editorial_chapters.json. All changed previous
@@ -45,6 +45,7 @@ def publish(manifest):
         if doc is None:
             raise ValueError('No editorial_chapters.json: content must be authored before publication')
         editorial_hash = digest(out/'editorial_chapters.json')
+        author = doc['author']
         visual_path = out/'visual_provenance.json'
         visual = read_json(visual_path) if visual_path.exists() else None
         if visual is not None and (not isinstance(visual, dict) or not isinstance(visual.get('method'), str) or not visual['method'].strip()):
@@ -95,7 +96,7 @@ def publish(manifest):
         atomic_json(out/'occurrence_notes.json', appendix)
         atomic_json(target/'review.json', flags)
         lines = ['# '+doc['title'], '',
-                 '> Codex 依逐字稿與投影片證據整理，未逐句聽音覆核。', '',
+                 f'> {author} 依逐字稿與投影片證據整理，未逐句聽音覆核。', '',
                  '## 全課總覽', '', doc['overview'], '',
                  '[全部畫面與逐字稿來源對照](畫面來源對照.md)', '']
         for chapter in doc['chapters']:
@@ -120,7 +121,7 @@ def publish(manifest):
             source_lines += [f'## {stamp(segment["start"])}–{stamp(segment["end"])}｜{segment["title"]}', '',
                              f'![來源畫面]({image})', '', segment['sections'][0]['text'], '']
         (target/'畫面來源對照.md').write_text('\n'.join(source_lines)+'\n', encoding='utf-8')
-        disclosure = ('本清單由 Codex 依逐字稿與投影片證據整理，未逐句聽音覆核；'
+        disclosure = (f'本清單由 {author} 依逐字稿與投影片證據整理，未逐句聽音覆核；'
                       '來源覆蓋驗證不等於語意或數值全部正確。畫面區間沿用既有抽樣邊界，短暫切頁仍可能漏取。')
         review = ['# 待核對清單', '', disclosure, '']
         review += [f'- {stamp(flag["time"])}｜{flag["chapter"]}｜{flag["message"]}' for flag in flags]
@@ -130,7 +131,7 @@ def publish(manifest):
         href = os.path.relpath(course.output_html, target).replace('\\', '/')
         (target/'review.html').write_text(
             '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>Codex 講義待核對清單</title><style>body{max-width:60rem;margin:3rem auto;padding:0 1rem;font:18px/1.8 system-ui}li{margin:1rem 0}</style>'
+            '<title>'+html.escape(author)+' 講義待核對清單</title><style>body{max-width:60rem;margin:3rem auto;padding:0 1rem;font:18px/1.8 system-ui}li{margin:1rem 0}</style>'
             f'<a href="{html.escape(href, quote=True)}">開啟課程講義</a><h1>待核對清單</h1><p>{html.escape(disclosure)}</p><ul>'
             + ''.join('<li>'+html.escape(line[2:])+'</li>' for line in review if line.startswith('- '))+'</ul></html>', encoding='utf-8')
         build(course)
@@ -140,10 +141,10 @@ def publish(manifest):
                       transcript_segments=len(raw), assigned_segments=len(raw), unassigned_segments=[], duplicate_assignments=0,
                       chapters=len(doc['chapters']), editorial_paragraphs=sum(len(c['paragraphs']) for c in doc['chapters']),
                       duration_seconds=evidence[-1]['end'], raw_transcript_sha256=raw_hash, raw_transcript_unchanged=True,
-                      notes_generation='Codex direct authoring from transcript and visual evidence',
+                      notes_generation=f'{author} direct authoring from transcript and visual evidence',
                       quality_flags=len(flags), semantic_accuracy_verified=False, audio_verified=False)
         atomic_json(out/'coverage_report.json', report)
-        provenance = dict(schema=1, author='Codex', authored_input='editorial_chapters.json',
+        provenance = dict(schema=1, author=author, authored_input='editorial_chapters.json',
                           editorial_sha256=editorial_hash, raw_transcript_sha256=raw_hash,
                           published_at=datetime.now(timezone.utc).isoformat(), backup=str(backup),
                           local_model_inference_used_for_this_authoring=False,
@@ -173,7 +174,7 @@ def audit_publication(manifest):
         raise ValueError('Published visual provenance does not match current inputs')
     if not visual_path.exists() and provenance.get('visual_provenance_sha256'):
         raise ValueError('Published visual provenance is missing')
-    if (provenance.get('author') != 'Codex' or
+    if (provenance.get('author') != doc['author'] or
             provenance.get('editorial_sha256') != digest(out/'editorial_chapters.json') or
             provenance.get('raw_transcript_sha256') != digest(out/'transcript.json') or
             provenance.get('local_model_inference_used_for_this_authoring') is not False):
@@ -203,7 +204,7 @@ def audit_publication(manifest):
         raise ValueError('Reader JavaScript has changed; rebuild the reader before delivery')
     return dict(course_id=course.id, chapters=len(doc['chapters']),
                 occurrences=len(evidence), transcript_segments=len(data['transcript']),
-                raw_transcript_unchanged=True, author='Codex', metadata_valid=True)
+                raw_transcript_unchanged=True, author=doc['author'], metadata_valid=True)
 
 
 if __name__ == '__main__':

@@ -116,7 +116,7 @@ Related: [課程格式](courses.md)、[講義規格](../profiles/computer-scienc
 
 ## Codex 直接撰寫與發布
 
-逐字稿、OCR、視覺分析與畫面時間仍可沿用；講義正文由 Codex 讀取這些來源後直接編寫，保存為課程目錄的 `editorial_chapters.json`。同系列課程先閱讀前課講義及待核對事項，再接續下一堂。這個檔案必須包含全課總覽、連續章節、段落文字、來源 ID 及明示的疑點，不能用重新命名本機模型舊稿代替撰寫。
+逐字稿、OCR、視覺分析與畫面時間仍可沿用；講義正文由 Codex 或 Claude Code 讀取這些來源後直接編寫，保存為課程目錄的 `editorial_chapters.json`，`author` 欄記錄實際撰寫者。從原稿核對結果建立 `slide_evidence.json`、校訂與閱讀稿的完整操作，見 [原創端到端範例](end-to-end-example.md)。同系列課程先閱讀前課講義及待核對事項，再接續下一堂。這個檔案必須包含全課總覽、連續章節、段落文字、來源 ID 及明示的疑點，不能用重新命名本機模型舊稿代替撰寫。
 
 ```powershell
 # 這兩個命令只做資料驗證與發布，不會啟動任何模型
