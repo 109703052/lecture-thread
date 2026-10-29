@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
-def editorial_course():
+def editorial_course(monkeypatch):
     with tempfile.TemporaryDirectory(dir=ROOT/'data/tmp', prefix='editorial-publish-test-') as folder:
         root = Path(folder)
+        # Isolate the test lock from a real lecture preprocessing run.
+        monkeypatch.setattr('editorial_publish.ROOT', root)
+        (root/'reader.js').write_bytes((ROOT/'reader.js').read_bytes())
         out = root/'course'
         (out/'slides').mkdir(parents=True)
         for name in ['a.svg', 'a-annotation.svg', 'b.svg']:
@@ -112,3 +115,14 @@ def test_missing_display_transcript_only_normalizes_characters(editorial_course)
     assert digest(out/'transcript.json') == raw
     corrections = read_json(out/'transcript.corrections.json')
     assert len(corrections) == 1 and corrections[0]['status'] == 'script-normalized'
+
+
+def test_deck_evidence_provenance_is_not_labelled_as_new_vlm(editorial_course):
+    root, out, tx, evidence, doc, manifest = editorial_course
+    atomic_json(out/'visual_provenance.json', {'method':'Original deck and video alignment; no new VLM'})
+    publish(manifest)
+    assert read_json(out/'authoring_provenance.json')['visual_analysis']=='Original deck and video alignment; no new VLM'
+    assert audit_publication(manifest)['metadata_valid']
+    atomic_json(out/'visual_provenance.json', {'method':'Changed evidence'})
+    with pytest.raises(ValueError, match='visual provenance'):
+        audit_publication(manifest)

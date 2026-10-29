@@ -16,7 +16,10 @@ def load_stage(script):
     spec=importlib.util.spec_from_file_location('lecture_profile_stage',script)
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    if script.name=='vlm_signals.py':
+    if script.name=='quick_ocr.py':
+        from ocr_cache import install
+        install(module)
+    elif script.name=='vlm_signals.py':
         # Scope the adapter to this stage; do not monkey-patch global os or the vendor checkout.
         original_os = module.os
         class StageOS:

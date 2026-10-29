@@ -35,6 +35,6 @@ if not args:
     raise SystemExit(0)
 if args[0].startswith('scripts/') or args[0].startswith('scripts\\'):
     args[0] = str(REPO / args[0])
-if Path(args[0]).name in {'vlm_signals.py', 'ground_slides.py', 'export_web.py'}:
+if Path(args[0]).name in {'quick_ocr.py', 'vlm_signals.py', 'ground_slides.py', 'export_web.py'}:
     args = [str(ROOT / 'profile_stage.py'), *args]
 raise SystemExit(subprocess.call([sys.executable, *args], env=env, cwd=REPO))

@@ -1,5 +1,24 @@
 # 開發與測試
 
+## 原始投影片配對（候選層）
+
+正式整合入口為 `lecture.cmd visual --job ... --references ... --out ... [--ocr-regions]`，見 [操作說明](overnight.md)。`visual_pipeline.py` 串接頁面配對、換頁補抓、局部差異與選用的原尺寸區域 OCR，保持獨立 review workspace。`ocr_cache.py` 為區域 OCR 及 `profile_stage.py` 的上游 quick_ocr 轉接提供持久快取：只有解碼像素完全一致才共用辨識，模型／設定變動會失效，失敗結果不保存。原上游 checkout 不需修改。
+
+重用規則（皆不降低取樣頻率、解析度或辨識設定）：
+
+- **單次影片解碼**：`scan_slide_changes.scan(..., base_frames=...)` 以一個 FFmpeg 解碼同時輸出每秒 320×224 探針與每五秒 960 寬基礎畫面。兩種 fps 濾鏡都取各時槽之前最後一格，已驗證與舊 `fps=1/5` 擷取逐位元組相同（含 29.97 fps 與非五秒倍數尾端）。成功後才寫 `shared-decode/extraction.json`；中斷時清掉殘留畫面重解。原尺寸畫面只對換頁邊界、最後一個探針（影片尾端）與局部 OCR 補抓。
+- **原稿特徵索引**：同次執行的五秒配對與邊界補抓共用 `SharedMatcher`，全部命中 checkpoint 時不建立。頁面 ORB 特徵存於 `data/cache/deck-features/`（`--feature-cache` 可改），鍵含原稿／呈現 PDF hash、頁數、960 寬灰階、ORB 參數、`FEATURE_VERSION` 與 OpenCV／PyMuPDF 版本，檔內再比對簽章與內容 hash；損壞或不符即重建。
+- **裁切產物**：`crops/<key>.png` 以來源畫面 hash、原尺寸座標、影片座標、畫布、padding 與 `CROP_VERSION` 定址，旁附 receipt 保存像素識別；未變更時不解碼來源、不重寫，OCR 快取直接用該識別。同次執行以 `RunFacts` 共用檔案 hash，解碼後的來源畫面最多留兩張。
+- `status.json` 的 `work` 列出完整解碼、Matcher／頁面特徵、邊界畫面、裁切與 OCR 呼叫／命中次數及各階段秒數。
+
+快取完整性：`frame_cache.py` 在共用掃描續跑及獨立頁面對齊時檢查 extraction receipt 的張數、連續檔名與每張圖片 SHA-256；缺檔、多檔、改名、圖片被修改或舊 receipt 缺少完整性清單時，明確停止並要求新輸出目錄，不重新編排剩餘畫面的時間。裁切 receipt 的 checksum 包含來源／座標 identity、圖片 hash 與像素識別；缺少欄位、舊格式或 checksum 不符時重新裁切，再使用正確的像素識別查 OCR 快取。這是損壞偵測，不是對抗可同時改寫內容及 checksum 的簽章機制。回歸案例在 `tests/test_cache_integrity.py`。
+
+`tests/test_visual_efficiency.py` 驗證單次解碼等同舊擷取、短暫頁面、回頁、微小註記與擦除、尾端註記、相同頁面保持 ambiguous、特徵快取損壞／換檔失效、裁切 receipt 損壞與版本失效、中斷續跑及記憶體上限。`tests/test_visual_pipeline.py` 驗證重複 OCR 呼叫數、微小變化隔離、失敗重試、座標換算、輸入版本、前後裁切保存與正式 CLI。這些測試不代表手寫辨識準確率或短暫畫面召回率已驗收。
+
+`deck_alignment.py` 讀取原始投影片與呈現用 PDF 的 hash 登錄檔，以五秒畫面建立頁面候選。它不呼叫 OCR／VLM，不改寫正式來源證據。`--existing` 可改用既有全部畫面出現紀錄；`--frame-cache` 重用已驗證影片 hash 與取樣間隔的擷取結果。輸出包含逐筆 checkpoint、候選排名、幾何轉換及 ambiguous/unmatched 狀態。
+
+此工具仍需課程實例驗證：候選區間邊界不是精確換頁時間，原始頁面的最終動畫狀態也不能取代影片當下畫面。測試 `tests/test_deck_alignment.py` 保護不確定配對與回看保存；語意及動畫核對另做。參閱 [ADR 0003](architecture/adr/0003-deck-assisted-visual-evidence.md)。
+
 目前正式驗收環境是 Windows、Python 3.12 與 Node.js；其他平台尚未驗收。原始碼測試不需要 GPU、影片、模型或 Ollama。
 
 ## 最小開發環境

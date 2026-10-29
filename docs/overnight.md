@@ -14,6 +14,31 @@
 
 ## 開始、查看與續跑
 
+### 有原始投影片：正式視覺入口
+
+已有影片任務（包含 `media.json` 與 `media/lecture.mp4`）時，使用以下命令建立獨立核對資料：
+
+```powershell
+.\lecture.cmd visual --job "output/jobs/任務ID" --references "原稿索引/references.json" --out "output/jobs/任務ID/visual-review"
+
+# 同一資料夾可續跑；加上此旗標，才對變化前後的原尺寸裁切圖做 CPU OCR
+.\lecture.cmd visual --job "output/jobs/任務ID" --references "原稿索引/references.json" --out "output/jobs/任務ID/visual-review" --ocr-regions
+```
+
+`references.json` 是陣列，每筆包含 `deck_id`、`source`、`source_sha256`、`render_pdf`、`render_sha256`、`slide_count`；檔案路徑使用絕對路徑。PPTX 須先有核對過的 PDF 呈現及原稿 hash。本命令不自動轉檔，亦不修改原稿。
+
+流程為原稿文字基準 → 一次影片解碼同時產生每秒低解析度換頁探針與五秒配對畫面 → 五秒頁面配對 → 補抓原尺寸邊界與影片尾端畫面 → 局部差異清單。原稿頁面特徵預設快取在 `data/cache/deck-features/`，換原稿、呈現 PDF 或程式版本會自動重建；續跑時已完成的配對、邊界畫面與裁切圖都直接沿用。`--ocr-regions` 會將差異座標換算回原尺寸，保留變化前後裁切圖並辨識；不把 OCR 當成已確認的手寫文字，不以空辨識結果刪除差異。模糊／無法配對的頁面仍須人工核對，必要時另做全圖辨識。
+
+輸出包括 `page-baselines.json`、`alignment.json`、`differences.json`、選用的 `region-ocr.json` 與 `status.json`。完成狀態是 `review_required`，不是講義已發布。相同輸入可續跑；影片、原稿索引或視覺程式版本改變時須指定新輸出目錄。命令透過 `run.py` 執行並取得專案處理鎖，不啟動 Ollama。
+
+此入口不會刪除既有 occurrence、改寫正式證據或自動執行舊文字模型。核對後再進入 Codex 校訂、撰寫與 `editorial_publish.py`。下方 `start/resume` 仍是舊整夜路線，尚未自動切換成原稿輔助流程。
+
+抽圖快取會檢查張數、連續序號及每張圖片 hash。若收到 `Frame cache` 完整性錯誤，請選擇新的 `--out` 重新建立核對資料，保留舊資料供比較；不要自行重編圖片序號或編造 hash。舊版沒有圖片完整性清單的快取也須重建。裁切紀錄缺少 checksum 或損壞則會自動重新裁切，避免誤用其他圖片的 OCR。
+
+### 無原稿：舊整夜路線
+
+透過 `run.py` 執行的 `quick_ocr` 現在使用 `course/ocr-cache/`，完全相同的解碼像素只辨識一次，回頁時間照常保留。快取包含 OCR 程式、模型、設定與套件版本；錯誤結果不快取。相似但不同的畫面仍分別辨識，避免吞掉小符號。已有 `slides_raw.json` 不會因加入快取而自動重跑。
+
 ```powershell
 # 本機影片（路徑有空白時保留引號）
 .\lecture.cmd start "C:\Courses\lecture01.mp4" --title "作業系統第一堂" --background

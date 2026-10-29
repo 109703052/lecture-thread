@@ -236,6 +236,8 @@ class Worker:
         return result
 
     def stage(self, name, operation):
+        if name in {'slides','ocr','dedup','vlm','ground','evidence','author'} and (self.course/'visual_provenance.json').exists():
+            raise ValueError('此課程已採獨立視覺證據流程，禁止舊 worker 重跑或覆寫。')
         self.current = name
         entry = self.status['stages'].setdefault(name, {})
         if entry.get('state') == 'completed':
@@ -400,7 +402,7 @@ class Worker:
         return [self.course / 'slide_evidence.json']
 
     def require_local_authoring(self):
-        if (self.course / 'editorial_chapters.json').exists():
+        if self.config.get('authoring_mode') == 'codex-direct' or (self.course / 'editorial_chapters.json').exists():
             raise ValueError('此課程已改由 Codex 直接撰寫，禁止舊 worker 回退本機模型；請使用 editorial_publish.py --course '+str(self.manifest))
 
     def author(self):
@@ -448,6 +450,8 @@ class Worker:
                 self.folder / '待核對清單.md', self.folder / 'review.html', self.folder / '完整課程講義.md']
 
     def run(self):
+        if (self.course / 'visual_provenance.json').exists():
+            raise ValueError('此課程已採獨立視覺證據流程，禁止舊 worker 覆寫；請使用投影片對齊與 editorial_publish。')
         # One lock covers every job and cleanup, so jobs cannot share GPU/Ollama concurrently.
         with exclusive_lock(PIPELINE_LOCK):
             self.status.update(state='running', pid=os.getpid(), error=None)
@@ -593,8 +597,22 @@ def main(argv=None):
     prepare.add_argument('--vlm-model', default='minicpm-v:8b')
     worker = sub.add_parser('_worker', help=argparse.SUPPRESS)
     worker.add_argument('id')
+    visual = sub.add_parser('visual', help='Deck alignment and optional regional OCR in a separate review workspace')
+    visual.add_argument('--job', type=Path, required=True, help='Existing job folder containing media.json and media/lecture.mp4')
+    visual.add_argument('--references', type=Path, required=True)
+    visual.add_argument('--out', type=Path, required=True)
+    visual.add_argument('--ocr-regions', action='store_true')
     args = parser.parse_args(argv)
     try:
+        if args.action == 'visual':
+            command = [str(PYTHON), str(ROOT/'run.py'), str(ROOT/'visual_pipeline.py'),
+                       '--job', str(args.job.resolve()), '--references', str(args.references.resolve()),
+                       '--out', str(args.out.resolve())]
+            if args.ocr_regions:
+                command.append('--ocr-regions')
+            with exclusive_lock(PIPELINE_LOCK):
+                subprocess.run(command, check=True)
+            return 0
         if args.action == 'prepare':
             with exclusive_lock(PIPELINE_LOCK):
                 try:

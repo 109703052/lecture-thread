@@ -45,6 +45,10 @@ def publish(manifest):
         if doc is None:
             raise ValueError('No editorial_chapters.json: content must be authored before publication')
         editorial_hash = digest(out/'editorial_chapters.json')
+        visual_path = out/'visual_provenance.json'
+        visual = read_json(visual_path) if visual_path.exists() else None
+        if visual is not None and (not isinstance(visual, dict) or not isinstance(visual.get('method'), str) or not visual['method'].strip()):
+            raise ValueError('Visual provenance must declare its actual method')
         if not course.media.is_file():
             raise FileNotFoundError(course.media)
         for occurrence in evidence:
@@ -143,11 +147,13 @@ def publish(manifest):
                           editorial_sha256=editorial_hash, raw_transcript_sha256=raw_hash,
                           published_at=datetime.now(timezone.utc).isoformat(), backup=str(backup),
                           local_model_inference_used_for_this_authoring=False,
-                          visual_analysis='Previously completed local VLM/OCR evidence retained',
+                          visual_analysis=visual['method'] if visual else 'Previously completed local VLM/OCR evidence retained',
                           transcript_display=('Only Traditional Chinese character normalization of raw ASR; no new semantic corrections'
                                               if created_display else 'Existing correction/reading/manual layers retained; not re-verified by this authoring run'),
                           source_appendix='Mechanically assembled timed excerpts and chapter references, not independently authored mini-lessons',
                           audio_verified=False, semantic_accuracy_verified=False)
+        if visual is not None:
+            provenance['visual_provenance_sha256'] = digest(visual_path)
         atomic_json(out/'authoring_provenance.json', provenance)
         print(f'Published {course.output_html}\nChapters: {report["chapters"]}; source occurrences: {len(appendix)}; backup: {backup}')
         return report
@@ -162,6 +168,11 @@ def audit_publication(manifest):
     if doc is None:
         raise ValueError('No editorial chapters to audit')
     provenance = read_json(out/'authoring_provenance.json')
+    visual_path = out/'visual_provenance.json'
+    if visual_path.exists() and provenance.get('visual_provenance_sha256') != digest(visual_path):
+        raise ValueError('Published visual provenance does not match current inputs')
+    if not visual_path.exists() and provenance.get('visual_provenance_sha256'):
+        raise ValueError('Published visual provenance is missing')
     if (provenance.get('author') != 'Codex' or
             provenance.get('editorial_sha256') != digest(out/'editorial_chapters.json') or
             provenance.get('raw_transcript_sha256') != digest(out/'transcript.json') or
