@@ -1,0 +1,84 @@
+# Clean-source checks on Windows: no GPU, Ollama, models, private courses, vendor checkout or secrets.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows / Python 3.12 / Node 24
+    # A fixed image instead of windows-latest, so tool changes arrive deliberately.
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # Synthetic-video tests must run here; a missing FFmpeg fails instead of skipping.
+      LECTURETHREAD_REQUIRE_FFMPEG: '1'
+    steps:
+      - name: Check out source
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        # astral-sh/setup-uv v10.3.3; uv matches the version used for local verification.
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.3'
+          # Only package downloads are cached; demo output and courses are rebuilt every run.
+          enable-cache: true
+          cache-dependency-glob: |
+            requirements-dev.txt
+            requirements.lock.txt
+
+      - name: Set up Node.js
+        # actions/setup-node v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.15.0'
+          package-manager-cache: false
+
+      - name: Install FFmpeg
+        # The runner image has no FFmpeg; the Chocolatey package bundles the gyan.dev release build.
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          choco install ffmpeg --version=8.0.1 --no-progress -y
+          ffmpeg -hide_banner -version | Select-Object -First 1
+          ffprobe -hide_banner -version | Select-Object -First 1
+          node --version
+
+      - name: Create Python environment
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          uv venv --python 3.12 --managed-python .venv
+          uv pip install --python .venv/Scripts/python.exe -r requirements-dev.txt
+          uv pip list --python .venv/Scripts/python.exe
+          .venv/Scripts/python.exe -c "import sys; assert sys.prefix != sys.base_prefix; print(sys.version); print(sys.prefix)"
+
+      - name: Build and verify public demo
+        # Built before pytest so the demo-backed reading alignment test runs too.
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .venv/Scripts/python.exe examples/demo/create_demo.py
+          .venv/Scripts/python.exe examples/demo/verify_demo.py
+
+      - name: Python tests
+        run: .venv/Scripts/python.exe -m pytest tests -p no:cacheprovider -rs
+
+      - name: Reader syntax and Node tests
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          node --check reader.js
+          node --test "tests/*.test.cjs"

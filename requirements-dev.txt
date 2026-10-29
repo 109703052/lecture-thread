@@ -1,4 +1,19 @@
-# Minimal dependencies for source-only Python tests; models and GPU are unnecessary.
+# Source-only development and tests: no models, GPU, Ollama, vendor checkout or course data.
+# Versions match requirements.lock.txt; the constraint keeps transitive packages at the
+# same versions without installing the full GPU/ASR environment.
+-c requirements.lock.txt
+
 pytest==9.1.1
 
+# Image and video fixtures: deck alignment, slide-change scan, comparison frames, crops.
+numpy==2.5.4
+opencv-python==5.0.0.93
+pillow==13.0.0
+pymupdf==2.0
+
+# Imported by the job runner / Ollama manager and the CS profile adapter under test.
+psutil==7.2.2
+pyyaml==6.0.3
+
+# Traditional Chinese normalisation of transcripts.
 opencc-python-reimplemented==0.1.7

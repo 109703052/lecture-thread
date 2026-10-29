@@ -264,7 +264,7 @@ def test_preflight_rejects_changed_job_before_starting_models(job):
 
 
 def test_extraction_keeps_revisits_and_small_annotations(tmp_path):
-    Image = pytest.importorskip('PIL.Image')
+    from PIL import Image
     if not shutil.which('ffmpeg'):
         pytest.skip('FFmpeg is an optional full-pipeline dependency')
     from extract_occurrences import extract
