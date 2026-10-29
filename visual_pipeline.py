@@ -81,6 +81,24 @@ def boundary_times(events, duration, last_probe=None):
                    if 0 <= t < duration} | {t for t in tail if 0 <= t < duration})
 
 
+def attach_comparison(rows, decoded, changes, interval):
+    """Give every observation its lossless frame from the shared decode (same scaler, PNG).
+
+    Matching keeps its own image (5 s JPEG or full-resolution seek); differences use only
+    these, so encoding/scaling paths never differ inside one comparison. Fail closed when a
+    slot is missing instead of silently falling back to mixed sources."""
+    from scan_slide_changes import comparison_name, comparison_slots
+    manifest = read_json(decoded/'extraction.json')['comparison']['frame_sha256']
+    slots = comparison_slots(changes['events'], changes['probes'], interval)
+    for row in rows:
+        slot = row['time']
+        name = comparison_name(slot) if type(slot) is int else None
+        if slot not in slots or name not in manifest:
+            raise ValueError(f'No comparison frame for observation at {slot}s; use a new output directory')
+        row.update(comparison_image=str((decoded/'compare'/name).resolve()),
+                   comparison_sha256=manifest[name], comparison_slot=slot)
+
+
 def source_frame(capture, time, out, facts=None, stats=None):
     import cv2
     facts = facts or RunFacts()
@@ -250,6 +268,7 @@ def run(job, references, out, *, ocr_regions=False, feature_cache=None):
                 stats['boundary_matches_computed'] = stats.get('boundary_matches_computed', 0)+1
             observations[time] = row
         rows = sorted(observations.values(), key=lambda row: row['time'])
+        attach_comparison(rows, decoded, changes, base['inputs']['interval'])
         augmented = dict(base, observations=rows, intervals=intervals(rows, media['duration']),
                          change_scan_sha256=digest(out/'change-scan.json'))
         atomic_json(out/'alignment.json', augmented)

@@ -27,32 +27,46 @@ def regions(before,after,valid=None):
     return count,boxes
 
 
-def video_plane(row):
+def plane_source(row,other):
+    # Use the shared-decode lossless frames only when both sides have one: a lossy 5 s
+    # JPEG compared with a differently scaled seek frame produces codec/scaler noise.
+    if other is None or ('comparison_image' in row and 'comparison_image' in other):
+        return row.get('comparison_image',row['image'])
+    return row['image']
+
+
+def video_plane(path):
     # Compare consecutive video frames directly. Independently fitting a homography
     # to the deck on every frame introduced artificial movement of printed text.
     # Zoom/pan remains a visible change and must be reviewed, not mistaken for ink.
-    image=cv2.imread(row['image']);image=cv2.resize(image,(960,2*round(image.shape[0]*960/image.shape[1]/2)))
+    image=cv2.imread(path)
+    size=(960,2*round(image.shape[0]*960/image.shape[1]/2))
+    if (image.shape[1],image.shape[0])!=size:image=cv2.resize(image,size)
     return image,np.ones(image.shape[:2],bool)
 
 
 def analyze(alignment_path,out,decisions=None):
     cv2.setNumThreads(1)
-    alignment=read_json(alignment_path);events=[];previous=None;previous_warp=None
+    alignment=read_json(alignment_path);events=[];previous=None;planes=(None,None)
     overrides=read_json(decisions).get('intervals',[]) if decisions else []
     for original in alignment['observations']:
         row=dict(original)
         for override in overrides:
             if override['start']<=row['time']<override['end']:row['page_id']=override['page_id']
-        current=video_plane(row)
-        if previous and row['page_id']==previous['page_id'] and current is not None and previous_warp is not None:
-            count,boxes=regions(previous_warp[0],current[0],previous_warp[1]&current[1])
+        if previous and row['page_id']==previous['page_id']:
+            before,after=plane_source(previous,row),plane_source(row,previous)
+            if before!=planes[0]:planes=(before,video_plane(before))
+            current=video_plane(after)
+            count,boxes=regions(planes[1][0],current[0],planes[1][1]&current[1])
+            planes=(after,current)
             if count:
                 events.append(dict(page_id=row['page_id'],before_time=previous['time'],after_time=row['time'],
-                    before_image=previous['image'],after_image=row['image'],changed_pixels=count,boxes_in_video_coordinates=boxes,canvas_size=[current[0].shape[1],current[0].shape[0]],
+                    before_image=previous['image'],after_image=row['image'],before_compared=before,after_compared=after,
+                    changed_pixels=count,boxes_in_video_coordinates=boxes,canvas_size=[current[0].shape[1],current[0].shape[0]],
                     action='Review local changes with page and speech context; no OCR text inferred'))
-        previous,previous_warp=row,current
-    result=dict(schema=3,alignment_sha256=digest(alignment_path),observations=len(alignment['observations']),
-        events=events,model_calls=0,limitations=['Zoom, pan, overlays and compression can cause differences unrelated to handwriting','One-pixel tolerance can hide changes adjacent to existing strokes; all original observations retained','Coordinates are in960px-wide video plane; not original-image crop coordinates','Detected changes are not automatically classified as handwriting or cursor'])
+        previous=row
+    result=dict(schema=4,alignment_sha256=digest(alignment_path),observations=len(alignment['observations']),
+        events=events,model_calls=0,limitations=['Zoom, pan, overlays and compression can cause differences unrelated to handwriting','One-pixel tolerance can hide changes adjacent to existing strokes; all original observations retained','Coordinates are in960px-wide video plane; not original-image crop coordinates','Pairs compare shared-decode lossless frames when both observations have them; otherwise the matching images (which may mix JPEG and seek frames)','Detected changes are not automatically classified as handwriting or cursor'])
     atomic_json(out,result);print('difference review events',len(events),'/',result['observations'],flush=True)
     return result
 

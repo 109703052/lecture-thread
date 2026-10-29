@@ -3,7 +3,7 @@ from PIL import Image
 
 from frame_cache import frame_manifest, validate_frame_cache
 from pipeline_common import atomic_json, digest
-from scan_slide_changes import scan
+from scan_slide_changes import COMPARE_RULE, COMPARE_WIDTH, scan
 from visual_pipeline import RunFacts, crop_artifact
 from ocr_cache import OCRCache
 
@@ -22,7 +22,9 @@ def test_scan_resume_rejects_invalid_frames_before_reuse(tmp_path, damage):
     frames, receipt = extracted(tmp_path)
     atomic_json(tmp_path/'extraction.json', receipt)
     signature = dict(video_sha256='video', width=320, height=224, fps=1, threshold=25, area=.025,
-                     base_frames=dict(folder=str(frames.resolve()), interval=5, width=960, quality=2))
+                     base_frames=dict(folder=str(frames.resolve()), interval=5, width=960, quality=2),
+                     comparison_frames=dict(folder=str((tmp_path/'compare').resolve()), width=COMPARE_WIDTH,
+                                            format='png', rule=COMPARE_RULE))
     atomic_json(tmp_path/'scan.json', dict(inputs=signature, probes=15, events=[]))
     if damage == 'missing':
         (frames/'frame-000002.jpg').unlink()

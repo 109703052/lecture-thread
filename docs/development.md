@@ -9,9 +9,12 @@
 - **單次影片解碼**：`scan_slide_changes.scan(..., base_frames=...)` 以一個 FFmpeg 解碼同時輸出每秒 320×224 探針與每五秒 960 寬基礎畫面。兩種 fps 濾鏡都取各時槽之前最後一格，已驗證與舊 `fps=1/5` 擷取逐位元組相同（含 29.97 fps 與非五秒倍數尾端）。成功後才寫 `shared-decode/extraction.json`；中斷時清掉殘留畫面重解。原尺寸畫面只對換頁邊界、最後一個探針（影片尾端）與局部 OCR 補抓。
 - **原稿特徵索引**：同次執行的五秒配對與邊界補抓共用 `SharedMatcher`，全部命中 checkpoint 時不建立。頁面 ORB 特徵存於 `data/cache/deck-features/`（`--feature-cache` 可改），鍵含原稿／呈現 PDF hash、頁數、960 寬灰階、ORB 參數、`FEATURE_VERSION` 與 OpenCV／PyMuPDF 版本，檔內再比對簽章與內容 hash；損壞或不符即重建。
 - **裁切產物**：`crops/<key>.png` 以來源畫面 hash、原尺寸座標、影片座標、畫布、padding 與 `CROP_VERSION` 定址，旁附 receipt 保存像素識別；未變更時不解碼來源、不重寫，OCR 快取直接用該識別。同次執行以 `RunFacts` 共用檔案 hash，解碼後的來源畫面最多留兩張。
+- **差異比較畫面**：同一次解碼另以單一縮放器輸出 960 寬無損 PNG（`shared-decode/compare/`），只保留五秒樣本、換頁事件前後與後一秒、最後一個探針，其餘邊解碼邊刪除。`alignment.json` 每筆觀察記錄 `comparison_image`／`comparison_sha256`／`comparison_slot`，`deck_differences` 兩側都有才用它比較（schema 4，事件另記 `before_compared`／`after_compared`）。配對仍用原本的五秒 JPEG 與原尺寸 seek 畫面，OCR 仍裁切原尺寸畫面。比較畫面的清單與 SHA-256 存在 `extraction.json` 的 `comparison`，續跑時缺檔、多檔、修改或舊 receipt 皆明確停止；缺少某觀察的比較畫面也停止，不退回混用來源。此修正未調整差異門檻、模糊或面積過濾。
 - `status.json` 的 `work` 列出完整解碼、Matcher／頁面特徵、邊界畫面、裁切與 OCR 呼叫／命中次數及各階段秒數。
 
 快取完整性：`frame_cache.py` 在共用掃描續跑及獨立頁面對齊時檢查 extraction receipt 的張數、連續檔名與每張圖片 SHA-256；缺檔、多檔、改名、圖片被修改或舊 receipt 缺少完整性清單時，明確停止並要求新輸出目錄，不重新編排剩餘畫面的時間。裁切 receipt 的 checksum 包含來源／座標 identity、圖片 hash 與像素識別；缺少欄位、舊格式或 checksum 不符時重新裁切，再使用正確的像素識別查 OCR 快取。這是損壞偵測，不是對抗可同時改寫內容及 checksum 的簽章機制。回歸案例在 `tests/test_cache_integrity.py`。
+
+`tests/test_comparison_frames.py` 以合成 H.264 影片重現五秒 JPEG 對 seek 原尺寸畫面的假差異，驗證比較畫面與 1 fps 探針同一格、只保留需要的時槽、比較畫面損壞或舊 receipt 被拒，以及完整流程中靜止配對不再產生事件，同時保留小負號寫上、擦除與逐步出現的文字。舊版程式在最後一項會多出 15→16 秒的假事件。
 
 `tests/test_visual_efficiency.py` 驗證單次解碼等同舊擷取、短暫頁面、回頁、微小註記與擦除、尾端註記、相同頁面保持 ambiguous、特徵快取損壞／換檔失效、裁切 receipt 損壞與版本失效、中斷續跑及記憶體上限。`tests/test_visual_pipeline.py` 驗證重複 OCR 呼叫數、微小變化隔離、失敗重試、座標換算、輸入版本、前後裁切保存與正式 CLI。這些測試不代表手寫辨識準確率或短暫畫面召回率已驗收。
 
