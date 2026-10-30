@@ -74,6 +74,7 @@ LectureThread 目前是 Windows 本地研究原型，原始碼公開於 GitHub�
 - [睡前處理一堂課](docs/overnight.md)：從影片開始、查看進度、失敗續跑及閱讀成果。
 - [原創端到端範例](docs/end-to-end-example.md)：用原創影片與 PDF 逐步走過 ASR、視覺核對、人工修訂、講義撰寫與閱讀頁，並說明換成自己的素材時要做什麼。
 - [開發與測試](docs/development.md) · [參與貢獻](CONTRIBUTING.md)：開發環境、與 CI 相同的測試命令、程式架構與參與方式。
+- [課程查詢 MCP server](docs/mcp.md)：讓 AI 助理透過本機唯讀 MCP 工具查詢已登錄課程的逐字稿、講義、來源時間與投影片出現紀錄；字面搜尋，不看圖片或聽音。含連接設定與實際展示紀錄。
 - [公開準備狀態](docs/open-source-readiness.md)：目前驗收條件、結果與歷史紀錄。
 
 ## 致謝與授權

@@ -41,6 +41,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             requirements-dev.txt
+            requirements-mcp.txt
             requirements.lock.txt
 
       - name: Set up Node.js
@@ -75,7 +76,13 @@ jobs:
           .venv/Scripts/python.exe examples/demo/verify_demo.py
 
       - name: Python tests
+        # Includes the MCP query tests and real stdio client/server tests (tests/test_mcp_protocol.py).
         run: .venv/Scripts/python.exe -m pytest tests -p no:cacheprovider -rs
+
+      - name: MCP server smoke test with the public demo registry
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .venv/Scripts/python.exe examples/mcp/record_demo.py --registry mcp.courses.example.json --check
 
       - name: Reader syntax and Node tests
         run: |

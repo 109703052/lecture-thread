@@ -35,7 +35,7 @@ $env:UV_TOOL_DIR = Join-Path $PWD 'tools/uv-tools'
 .\tools\uv\uv.exe pip install --python .venv/Scripts/python.exe -r requirements-dev.txt
 ```
 
-`requirements-dev.txt` 只列測試與其匯入的正式模組實際需要的套件，版本與 `requirements.lock.txt` 相同，並以該檔作為 constraint 固定間接依賴；不會安裝 Whisper、CUDA 套件或下載模型。
+`requirements-dev.txt` 只列測試與其匯入的正式模組實際需要的套件，版本與 `requirements.lock.txt` 相同，並以該檔作為 constraint 固定間接依賴；它另外引入 `requirements-mcp.txt`（MCP SDK 與其全部間接依賴的固定版本）。不會安裝 Whisper、CUDA 套件或下載模型。
 
 | 套件 | 用途 |
 |---|---|
@@ -44,6 +44,7 @@ $env:UV_TOOL_DIR = Join-Path $PWD 'tools/uv-tools'
 | psutil | 任務管線與專案 Ollama 管理的程序核對 |
 | pyyaml | 資工 profile 轉接器 `profile_stage.py` |
 | opencc-python-reimplemented | 逐字稿繁體中文正規化 |
+| mcp（及 `requirements-mcp.txt` 固定的間接依賴） | 唯讀課程查詢 MCP server 與真實 stdio client 測試；官方 Python SDK 2.3.0，不含模型或 GPU 套件，見 [MCP server](mcp.md) |
 
 ## 執行測試（與 CI 相同）
 
@@ -51,19 +52,21 @@ $env:UV_TOOL_DIR = Join-Path $PWD 'tools/uv-tools'
 .\.venv\Scripts\python.exe examples/demo/create_demo.py
 .\.venv\Scripts\python.exe examples/demo/verify_demo.py
 .\.venv\Scripts\python.exe -m pytest tests -p no:cacheprovider -rs
+.\.venv\Scripts\python.exe examples/mcp/record_demo.py --registry mcp.courses.example.json --check
 node --check reader.js
 node --test "tests/*.test.cjs"
 ```
 
 先產生示範，可讓以示範課程為資料的閱讀對照整合測試一併執行。`-rs` 會列出每個跳過項目及原因。`node --test "tests/*.test.cjs"` 由 Node 自行展開，涵蓋 `tests/` 內全部閱讀器測試檔。
 
-若本機暫存目錄無法寫入，可另加 `--basetemp=data/tmp/pytest`（`data/` 被 Git 忽略）。
+若本機暫存目錄無法寫入，可另加 `--basetemp=data/tmp/pytest`（`data/` 被 Git 忽略）。全新 clone 沒有 `data/tmp`，先執行 `New-Item -ItemType Directory -Force data/tmp`，否則 pytest 無法建立該暫存目錄。
 
 ### 測試分類
 
 | 類別 | 條件 | 內容 |
 |---|---|---|
 | 一般開發測試 | 只需 `requirements-dev.txt` | 課程設定、閱讀器建置、逐字稿與人工修訂保存、HTTP 媒體範圍、任務管線狀態與鎖、原稿配對、差異比較、OCR／裁切／畫面快取完整性、原創端到端範例的產生器與銜接工具（`tests/test_e2e_example.py`，不呼叫語音合成、ASR 或模型）等；以及全部 Node 閱讀器測試 |
+| MCP 測試 | 只需 `requirements-dev.txt` | `tests/test_course_query.py`：純查詢、資料層、來源 ID、出現紀錄、revision、路徑邊界、大小上限與唯讀檢查；`tests/test_mcp_protocol.py`：以官方 SDK client 實際啟動 stdio server，完成握手、tools/list、四個工具呼叫、錯誤、stdout 純度與關閉。沒有建立 symlink 權限的機器會跳過一項 symlink 案例並列出原因 |
 | 合成影片測試 | 另需 FFmpeg／ffprobe | `tests/test_comparison_frames.py`、`tests/test_visual_efficiency.py` 的 FFmpeg 案例、`tests/test_lecture_pipeline.py` 的抽圖案例。以程式產生的短片驗證，不使用真實課程 |
 | 選用整合測試 | 需要上游 checkout 或本機課程匯出 | `tests/test_cs_profile.py`、`tests/test_visual_pipeline.py` 的上游 quick_ocr 案例、`tests/test_viewer_sync.py`。原始碼不含這些資料，會明確跳過 |
 
@@ -80,10 +83,11 @@ node --test "tests/*.test.cjs"
 1. 安裝固定版本的 uv（0.13.3）、Node.js（24.15.0）與 FFmpeg 8.0.1（Chocolatey 套件），並印出版本。
 2. 以 uv 建立 Python 3.12 `.venv`，只安裝 `requirements-dev.txt`，列出已安裝套件並確認是虛擬環境。
 3. 產生公開示範，並以 `examples/demo/verify_demo.py` 檢查閱讀頁、內嵌資料、投影片與音訊。
-4. 執行 pytest（`-rs` 列出跳過原因；`LECTURETHREAD_REQUIRE_FFMPEG=1`）。
-5. `node --check reader.js` 與全部 Node 測試。
+4. 執行 pytest（`-rs` 列出跳過原因；`LECTURETHREAD_REQUIRE_FFMPEG=1`），包含 MCP 查詢與 stdio 協定測試。
+5. 以 `examples/mcp/record_demo.py --check` 用公開 registry 實際啟動 MCP server 並呼叫四個工具。
+6. `node --check reader.js` 與全部 Node 測試。
 
-工作流程只有 `contents: read` 權限，不使用 secret，checkout 不保存憑證。外部 Actions 以 commit SHA 固定，旁註版本：actions/checkout v7.0.1、astral-sh/setup-uv v10.3.3、actions/setup-node v7.1.0。只快取 uv 的套件下載（以兩個 requirements 檔為鍵）；示範產物、課程、模型與上游 checkout 每次都不存在，也不快取。CI 不需要 GPU、Ollama、模型、私人課程、個人憑證或 vendor。
+工作流程只有 `contents: read` 權限，不使用 secret，checkout 不保存憑證。外部 Actions 以 commit SHA 固定，旁註版本：actions/checkout v7.0.1、astral-sh/setup-uv v10.3.3、actions/setup-node v7.1.0。只快取 uv 的套件下載（以三個 requirements 檔為鍵）；示範產物、課程、模型與上游 checkout 每次都不存在，也不快取。CI 不需要 GPU、Ollama、模型、私人課程、個人憑證或 vendor。
 
 更新 Actions 版本時，請從各 Action 的官方 release 取得新 tag 對應的 commit SHA，一併更新註解。
 

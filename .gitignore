@@ -38,3 +38,6 @@ docs/setup-history.md
 # Personal course manifests (public demo manifests live in courses/).
 course.local.json
 courses/*.local.json
+
+# Personal MCP course registry (the public example is mcp.courses.example.json).
+mcp.courses.local.json

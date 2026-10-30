@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "courses": [
+    {"manifest": "courses/demo.json", "raw_transcript_origin": "scripted"}
+  ]
+}

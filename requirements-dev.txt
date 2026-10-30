@@ -17,3 +17,6 @@ pyyaml==6.0.3
 
 # Traditional Chinese normalisation of transcripts.
 opencc-python-reimplemented==0.1.7
+
+# Read-only course MCP server and its real stdio client tests (official SDK, fully pinned).
+-r requirements-mcp.txt
